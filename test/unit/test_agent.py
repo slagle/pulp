@@ -21,8 +21,6 @@ import testutil
 import mockagent
 from pulp.server.gc_agent.pulpagent import PulpAgent
 
-mockagent.install()
-
 
 REPOID = 'TEST-REPO'
 CONSUMER = {
@@ -44,6 +42,10 @@ TASKID = 'TASK-123'
 
 
 class TestPulpAgent(testutil.PulpTest):
+    
+    def setUp(self):
+        testutil.PulpTest.setUp(self)
+        mockagent.install()
     
     def test_unregistered(self):
         # Test
