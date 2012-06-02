@@ -22,12 +22,13 @@ config = None # ConfigParser.SafeConfigParser instance
 
 data_dir = os.environ["OPENSHIFT_DATA_DIR"]
 config_dir = os.path.join(data_dir, "config")
+config_dir = os.path.join(data_dir, "log")
 
 # to guarantee that a section and/or setting exists, add a default value here
 _default_values = {
     'auditing': {
         'audit_events': 'false',
-        'events_file': '/var/log/pulp/events.log',
+        'events_file': os.path.join(log_dir, 'var/log/pulp/events.log'),
         'lifetime': '90',
         'backups': '4',
     },
@@ -62,8 +63,8 @@ _default_values = {
         'level': 'info',
         'max_size': '1048576',
         'backups': '4',
-        'pulp_file': '/var/log/pulp/pulp.log',
-        'grinder_file': '/var/log/pulp/grinder.log',
+        'pulp_file': os.path.join(log_dir, 'var/log/pulp/pulp.log'),
+        'grinder_file': os.path.join(log_dir, 'var/log/pulp/grinder.log'),
     },
     'messaging': {
         'url': 'tcp://localhost:5672',
@@ -133,7 +134,6 @@ def check_config_files():
     Check for read permissions on the configuration files. Raise a runtime error
     if the file doesn't exist or the read permissions are lacking.
     """
-    print _config_files
     for file in _config_files:
         if not os.access(file, os.F_OK):
             raise RuntimeError('Cannot find configuration file: %s' % file)
