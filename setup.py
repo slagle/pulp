@@ -42,14 +42,14 @@ setup(
     url='http://pulpproject.org',
     license='GPLv2+',
     packages=find_packages(),
-    scripts=[
-        'bin/pulp-admin',
-        'bin/pulp-v2-admin',
-        'bin/pulp-consumer',
-        'bin/pulp-v2-consumer',
-        'bin/pulp-migrate',
-        'bin/pulp-package-migrate',
-    ],
+    # scripts=[
+        # 'bin/pulp-admin',
+        # 'bin/pulp-v2-admin',
+        # 'bin/pulp-consumer',
+        # 'bin/pulp-v2-consumer',
+        # 'bin/pulp-migrate',
+        # 'bin/pulp-package-migrate',
+    # ],
     include_package_data=True,
     data_files=[('/etc/pulp', 'etc/pulp/*')],
     classifiers=[
