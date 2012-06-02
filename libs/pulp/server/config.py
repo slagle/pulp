@@ -118,8 +118,12 @@ _default_values = {
     },
 }
 
+data_dir = os.environ["OPENSHIFT_DATA_DIR"]
+config_dir = os.path.join(data_dir, "config")
+
 # to add a default configuration file, list the full path here
-_config_files = ['/etc/pulp/repo_auth.conf', '/etc/pulp/pulp.conf']
+_config_files = [ os.path.join(config_dir, '/etc/pulp/repo_auth.conf'),
+                  os.path.join(config_dir, '/etc/pulp/pulp.conf')]
 
 # configuration api -----------------------------------------------------------
 
