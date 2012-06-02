@@ -12,6 +12,7 @@
 # have received a copy of GPLv2 along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 
+import os
 from platform import python_version
 from setuptools import setup, find_packages
 
@@ -40,16 +41,12 @@ setup(
     url='http://pulpproject.org',
     license='GPLv2+',
     packages=find_packages(),
-    # scripts=[
-        # 'bin/pulp-admin',
-        # 'bin/pulp-v2-admin',
-        # 'bin/pulp-consumer',
-        # 'bin/pulp-v2-consumer',
-        # 'bin/pulp-migrate',
-        # 'bin/pulp-package-migrate',
-    # ],
+    scripts=[
+        'bin/pulp-migrate',
+        'bin/pulp-package-migrate',
+    ],
     include_package_data=True,
-    data_files=[('/etc/pulp', 'etc/pulp/*')],
+    data_files=[('/etc/pulp', ['etc/pulp/pulp.conf', 'etc/pulp/repo_auth.conf'])],
     classifiers=[
         'License :: OSI Approved :: GNU General Puclic License (GPL)',
         'Programming Language :: Python',
