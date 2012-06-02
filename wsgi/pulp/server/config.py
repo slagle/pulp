@@ -133,6 +133,7 @@ def check_config_files():
     Check for read permissions on the configuration files. Raise a runtime error
     if the file doesn't exist or the read permissions are lacking.
     """
+    print _config_files
     for file in _config_files:
         if not os.access(file, os.F_OK):
             raise RuntimeError('Cannot find configuration file: %s' % file)
