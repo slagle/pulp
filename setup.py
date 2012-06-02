@@ -33,7 +33,7 @@ setup(
         '../repo/bin/pulp-package-migrate',
     ],
     include_package_data=True,
-    data_files=[('/etc/pulp', ['../repo/etc/pulp/pulp.conf', '../repo/etc/pulp/repo_auth.conf'])],
+    data_files=[('../data/config/etc/pulp', ['../repo/etc/pulp/pulp.conf', '../repo/etc/pulp/repo_auth.conf'])],
     classifiers=[
         'License :: OSI Approved :: GNU General Puclic License (GPL)',
         'Programming Language :: Python',
