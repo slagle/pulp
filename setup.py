@@ -13,24 +13,11 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 
 import os
-from platform import python_version
 from setuptools import setup, find_packages
 
-
-major, minor, micro = python_version().split('.')
-
-if major != '2' or minor not in ['4', '5', '6', '7']:
-    raise Exception('unsupported version of python')
-
 requires = [
-    'web.py', 'pymongo',
+    'web.py', 'pymongo', 'simplejson',
 ]
-
-if minor not in ['6', '7']:
-    requires.extend([
-        'simplejson == 2.0.9',
-    ])
-
 
 setup(
     name='pulp',
