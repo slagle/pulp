@@ -16,7 +16,7 @@ import os
 from setuptools import setup, find_packages
 
 requires = [
-    'web.py', 'pymongo', 'simplejson',
+    'web.py', 'pymongo', 'simplejson', 'isodate',
 ]
 
 setup(
