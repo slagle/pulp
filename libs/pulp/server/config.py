@@ -40,7 +40,8 @@ _default_values = {
     'database': {
         'auto_migrate': 'false',
         'name': 'pulp_database',
-        'seeds': 'localhost:27017',
+        'seeds': '%s:%s' % (os.environ["OPENSHIFT_DB_HOST"],
+                            os.environ["OPENSHIFT_DB_PORT"]),
         'operation_retries': '2',
     },
     'events': {
