@@ -20,6 +20,9 @@ from gettext import gettext as _
 
 config = None # ConfigParser.SafeConfigParser instance
 
+data_dir = os.environ["OPENSHIFT_DATA_DIR"]
+config_dir = os.path.join(data_dir, "config")
+
 # to guarantee that a section and/or setting exists, add a default value here
 _default_values = {
     'auditing': {
@@ -53,7 +56,7 @@ _default_values = {
     },
     # XXX should 'ldap' be in here or not?
     'logs': {
-        'config': '/etc/pulp/logging/basic.cfg',
+        'config': os.path.join(config_dir, 'etc/pulp/logging/basic.cfg'),
         # XXX are the rest of these even used?
         'qpid_log_level': 'info',
         'level': 'info',
@@ -118,9 +121,6 @@ _default_values = {
         # XXX does proxy_url, proxy_port, proxy_user, proxy_pass belong here?
     },
 }
-
-data_dir = os.environ["OPENSHIFT_DATA_DIR"]
-config_dir = os.path.join(data_dir, "config")
 
 # to add a default configuration file, list the full path here
 _config_files = [ os.path.join(config_dir, 'etc/pulp/repo_auth.conf'),
