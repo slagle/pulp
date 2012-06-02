@@ -35,11 +35,11 @@ if minor not in ['6', '7']:
 
 setup(
     name='pulp',
-    version='0.0.129',
+    version='2.0'
     description='content mangement and delivery',
     author='Pulp Team',
     author_email='pulp-list@redhat.com',
-    url='',
+    url='http://pulpproject.org',
     license='GPLv2+',
     packages=find_packages(),
     scripts=[
@@ -51,7 +51,7 @@ setup(
         'bin/pulp-package-migrate',
     ],
     include_package_data=False,
-    data_files=[],
+    data_files=[('/etc/pulp', 'etc/pulp/*')],
     classifiers=[
         'License :: OSI Approved :: GNU General Puclic License (GPL)',
         'Programming Language :: Python',
