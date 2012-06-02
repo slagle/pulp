@@ -42,8 +42,8 @@ setup(
     license='GPLv2+',
     packages=find_packages(),
     scripts=[
-        'bin/pulp-migrate',
-        'bin/pulp-package-migrate',
+        '../repo/bin/pulp-migrate',
+        '../repo/bin/pulp-package-migrate',
     ],
     include_package_data=True,
     data_files=[('/etc/pulp', ['etc/pulp/pulp.conf', 'etc/pulp/repo_auth.conf'])],
