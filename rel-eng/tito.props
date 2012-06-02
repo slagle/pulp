@@ -1,0 +1,7 @@
+[globalconfig]
+default_builder = tito.builder.Builder
+default_tagger = tito.tagger.VersionTagger
+
+[mongo]
+default_builder = tito.builder.NoTgzBuilder
+default_tagger = tito.tagger.VersionTagger
