@@ -22,7 +22,7 @@ config = None # ConfigParser.SafeConfigParser instance
 
 data_dir = os.environ["OPENSHIFT_DATA_DIR"]
 config_dir = os.path.join(data_dir, "config")
-config_dir = os.path.join(data_dir, "log")
+log_dir = os.path.join(data_dir, "log")
 
 # to guarantee that a section and/or setting exists, add a default value here
 _default_values = {
