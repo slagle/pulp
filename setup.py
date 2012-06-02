@@ -35,7 +35,7 @@ if minor not in ['6', '7']:
 
 setup(
     name='pulp',
-    version='2.0'
+    version='2.0',
     description='content mangement and delivery',
     author='Pulp Team',
     author_email='pulp-list@redhat.com',
