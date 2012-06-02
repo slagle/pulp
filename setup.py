@@ -50,7 +50,7 @@ setup(
         'bin/pulp-migrate',
         'bin/pulp-package-migrate',
     ],
-    include_package_data=False,
+    include_package_data=True,
     data_files=[('/etc/pulp', 'etc/pulp/*')],
     classifiers=[
         'License :: OSI Approved :: GNU General Puclic License (GPL)',
