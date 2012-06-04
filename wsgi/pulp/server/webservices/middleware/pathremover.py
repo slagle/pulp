@@ -43,6 +43,6 @@ class PathRemoverMiddleware(object):
         if path_info.startswith("/pulp/api"):
             environ["PATH_INFO"] = path_info.strip("/pulp/api")
             f.write("here0")
-            f.write(str(environ["PATH_INFO"])
+            f.write(str(environ["PATH_INFO"]))
         f.close()
         return self.app(environ, start_response)
