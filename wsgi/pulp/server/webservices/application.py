@@ -66,6 +66,7 @@ from pulp.server.webservices.controllers import (
     dispatch, gc_contents, gc_plugins, gc_repositories, gc_consumers, gc_root_actions)
 from pulp.server.webservices.middleware.exception import ExceptionHandlerMiddleware
 from pulp.server.webservices.middleware.postponed import PostponedOperationMiddleware
+from pulp.server.webservices.middleware.pathremover import PathRemoverMiddleware
 
 # conatants and application globals --------------------------------------------
 
@@ -177,7 +178,8 @@ def wsgi_application():
     @return: wsgi application callable
     """
     application = web.subdir_application(URLS).wsgifunc()
-    stack_components = [application, PostponedOperationMiddleware, ExceptionHandlerMiddleware]
+    stack_components = [application, PathRemoverMiddleware, 
+        PostponedOperationMiddleware, ExceptionHandlerMiddleware]
     stack = reduce(lambda a, m: m(a), stack_components)
     _initialize_pulp()
     return stack
