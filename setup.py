@@ -16,7 +16,7 @@ import os
 from setuptools import setup, find_packages
 
 requires = [
-    'web.py', 'pymongo', 'simplejson', 'isodate', 
+    'web.py', 'pymongo', 'simplejson', 'isodate', 'oauth2'
 ]
 
 setup(
@@ -28,12 +28,8 @@ setup(
     url='http://pulpproject.org',
     license='GPLv2+',
     packages=find_packages(),
-    scripts=[
-        '../repo/bin/pulp-migrate',
-        '../repo/bin/pulp-package-migrate',
-    ],
+    scripts=[ ],
     include_package_data=True,
-    data_files=[('../data/config/etc/pulp', ['../repo/etc/pulp/pulp.conf', '../repo/etc/pulp/repo_auth.conf'])],
     classifiers=[
         'License :: OSI Approved :: GNU General Puclic License (GPL)',
         'Programming Language :: Python',
