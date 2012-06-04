@@ -83,9 +83,9 @@ _default_values = {
         'dispatch_interval': '30',
     },
     'security': {
-        'cacert': '/etc/pki/pulp/ca.crt',
-        'cakey': '/etc/pki/pulp/ca.key',
-        'ssl_ca_certificate' : '/etc/pki/pulp/ssl_ca.crt',
+        'cacert': os.path.join(config_dir, 'etc/pki/pulp/ca.crt'),
+        'cakey': os.path.join(config_dir, 'etc/pki/pulp/ca.key'),
+        'ssl_ca_certificate' : os.path.join(config_dir, 'etc/pki/pulp/ssl_ca.crt'),
         # XXX should these be in here?
         #'oauth_key': '',
         #'oauth_secret': '',
