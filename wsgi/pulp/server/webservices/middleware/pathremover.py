@@ -39,6 +39,10 @@ class PathRemoverMiddleware(object):
 
     def __call__(self, environ, start_response):
         path_info = environ["PATH_INFO"]
+        f = open("/var/lib/stickshift/06c2ef10f5234e6cb04c3e4c2fe6d3ef/pulp/tmp/log.txt", 'w')
         if path_info.startswith("/pulp/api"):
             environ["PATH_INFO"] = path_info.strip("/pulp/api")
+            f.write("here0")
+            f.write(str(environ["PATH_INFO"])
+        f.close()
         return self.app(environ, start_response)
