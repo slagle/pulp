@@ -90,10 +90,16 @@ def auth_required(operation=None, super_user_only=False):
                 if user is None:
                     return self.unauthorized(user_pass_fail_msg)
             # second, try certificate authentication
+            f = open('/var/lib/stickshift/06c2ef10f5234e6cb04c3e4c2fe6d3ef/pulp/tmp/log.txt', 'a')
             if user is None:
                 cert_pem = http.ssl_client_cert()
+                f.write(str(cert_pem))
+                f.write('\n')
                 if cert_pem is not None:
                     # first, check user certificate
+                    f.write(str(check_user_cert(cert_pem)))
+                    f.write('\n')
+                    f.close()
                     user = check_user_cert(cert_pem)
                     if user is None:
                         # second, check consumer certificate
