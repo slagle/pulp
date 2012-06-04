@@ -38,7 +38,7 @@ class PathRemoverMiddleware(object):
                         'Content-Length': '-1'}
 
     def __call__(self, environ, start_response):
-        path_info = environ.get("PATH_INFO", "")
+        path_info = environ["PATH_INFO"]
         if path_info.startswith("/pulp/api"):
             environ["PATH_INFO"] = path_info.strip("/pulp/api")
         return self.app(environ, start_response)
