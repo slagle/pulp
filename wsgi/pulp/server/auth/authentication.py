@@ -29,9 +29,14 @@ from pulp.server.auth.certificate import Certificate
 from pulp.server.auth.password_util import check_password
 from pulp.server.config import config
 from pulp.server.db.model import User
-from pulp.server.LDAPConnection import LDAPConnection
 from pulp.server.exceptions import PulpException
 
+try:
+    from pulp.server.LDAPConnection import LDAPConnection
+except ImportError:
+    _have_ldap = False
+else:
+    _have_ldap = True
 
 _consumer_api = ConsumerApi()
 _repo_api = RepoApi()
@@ -48,7 +53,10 @@ def _using_ldap():
     @rtype: bool
     @return: True if using ldap, False otherwise
     """
-    return config.has_section('ldap')
+    if not _have_ldap:
+        return False
+    else:
+        return config.has_section('ldap')
 
 
 def _check_username_password_ldap(username, password=None):
