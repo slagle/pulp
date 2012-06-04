@@ -33,7 +33,7 @@ serial_path = os.path.join(data_dir, 'lib/pulp/sn.dat')
 
 class SerialNumber:
 
-    PATH = '/var/lib/pulp/sn.dat'
+    PATH = serial_path
     __mutex = RLock()
     __metaclass__ = Singleton
 
