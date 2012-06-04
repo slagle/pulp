@@ -30,6 +30,9 @@ from logging import getLogger
 log = getLogger(__name__)
 
 
+data_dir = os.environ["OPENSHIFT_DATA_DIR"]
+watchdog_journal_path = os.path.join(data_dir, 'lib/pulp/journal/watchdog')
+
 class Services:
     """
     Agent services.
@@ -60,7 +63,7 @@ class Services:
         log.info('AMQP broker configured')
         # watchdog
         cls.watchdog = WatchDog(url=url)
-        cls.watchdog.journal('/var/lib/pulp/journal/watchdog')
+        cls.watchdog.journal(watchdog_journal_path)
         cls.watchdog.start()
         log.info('AMQP watchdog started')
         # heartbeat
