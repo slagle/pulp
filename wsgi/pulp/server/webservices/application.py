@@ -178,7 +178,8 @@ def wsgi_application():
     @return: wsgi application callable
     """
     application = web.subdir_application(URLS).wsgifunc()
-    stack_components = [application, PostponedOperationMiddleware, ExceptionHandlerMiddleware]
+    stack_components = [application, PathRemoverMiddleware, 
+        PostponedOperationMiddleware, ExceptionHandlerMiddleware]
     stack = reduce(lambda a, m: m(a), stack_components)
     _initialize_pulp()
     return stack
