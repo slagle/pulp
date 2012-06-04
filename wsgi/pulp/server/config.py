@@ -44,7 +44,7 @@ _default_values = {
     'database': {
         'auto_migrate': 'false',
         'name': 'pulp_database',
-        'seeds': '%s:%s@%s:%s' % (os.environ["OPENSHIFT_NOSQL_DB_USERNAME"],
+        'seeds': 'mongodb://%s:%s@%s:%s' % (os.environ["OPENSHIFT_NOSQL_DB_USERNAME"],
                                   os.environ["OPENSHIFT_NOSQL_DB_PASSWORD"],
                                   os.environ["OPENSHIFT_NOSQL_DB_HOST"],
                                   os.environ["OPENSHIFT_NOSQL_DB_PORT"]),
