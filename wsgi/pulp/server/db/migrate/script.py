@@ -34,6 +34,10 @@ from pulp.server.db.version import (
     VERSION, get_version_in_use, set_version, is_validated, set_validated, 
     revert_to_version, clean_db)
 
+data_dir = os.environ["OPENSHIFT_DATA_DIR"]
+log_dir = os.path.join(data_dir, "log")
+default_log_file = os.path.join(log_dir, 'pulp/db.log')
+
 def parse_args():
     parser = OptionParser()
     parser.add_option('--force', action='store_true', dest='force',
@@ -44,7 +48,7 @@ def parse_args():
                       default=False, 
                       help='run migration, but do not update version')
     parser.add_option('--log-file', dest='log_file',
-                      default='/var/log/pulp/db.log',
+                      default=default_log_file,
                       help='file for log messages')
     parser.add_option('--log-level', dest='log_level', default='info',
                       help='level of logging (debug, info, error, critical)')
