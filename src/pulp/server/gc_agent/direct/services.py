@@ -32,7 +32,7 @@ log = getLogger(__name__)
 
 
 data_dir = os.environ["OPENSHIFT_DATA_DIR"]
-watchdog_journal_path = os.path.join(data_dir, 'lib/pulp/journal/watchdog')
+watchdog_journal_path = os.path.join(data_dir, 'var/lib/pulp/journal/watchdog')
 
 class Services:
     """

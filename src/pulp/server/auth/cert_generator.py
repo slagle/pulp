@@ -29,7 +29,7 @@ ADMIN_PREFIX = 'admin:'
 ADMIN_SPLITTER = ':'
 
 data_dir = os.environ["OPENSHIFT_DATA_DIR"]
-serial_path = os.path.join(data_dir, 'lib/pulp/sn.dat')
+serial_path = os.path.join(data_dir, 'var/lib/pulp/sn.dat')
 
 class SerialNumber:
 

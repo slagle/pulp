@@ -48,7 +48,7 @@ _LOADER = None
 
 data_dir = os.environ["OPENSHIFT_DATA_DIR"]
 
-_PLUGINS_ROOT = os.path.join(data_dir, 'lib/pulp/plugins')
+_PLUGINS_ROOT = os.path.join(data_dir, 'var/lib/pulp/plugins')
 _DISTRIBUTORS_DIR = _PLUGINS_ROOT + '/distributors'
 _IMPORTERS_DIR = _PLUGINS_ROOT + '/importers'
 _PROFILERS_DIR = _PLUGINS_ROOT + '/profilers'

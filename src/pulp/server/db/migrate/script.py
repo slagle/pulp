@@ -35,8 +35,7 @@ from pulp.server.db.version import (
     revert_to_version, clean_db)
 
 data_dir = os.environ["OPENSHIFT_DATA_DIR"]
-log_dir = os.path.join(data_dir, "log")
-default_log_file = os.path.join(log_dir, 'var/log/pulp/db.log')
+default_log_file = os.path.join(data_dir, 'var/log/pulp/db.log')
 
 def parse_args():
     parser = OptionParser()
