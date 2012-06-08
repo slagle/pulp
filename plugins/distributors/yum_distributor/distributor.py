@@ -27,6 +27,8 @@ from ConfigParser import SafeConfigParser
 _LOG = logging.getLogger(__name__)
 _ = gettext.gettext
 
+data_dir = os.environ["OPENSHIFT_DATA_DIR"]
+
 YUM_DISTRIBUTOR_TYPE_ID="yum_distributor"
 RPM_TYPE_ID="rpm"
 SRPM_TYPE_ID="srpm"
@@ -39,9 +41,9 @@ OPTIONAL_CONFIG_KEYS = ["protected", "auth_cert", "auth_ca",
                         "checksum_type", "skip_content_types", "https_publish_dir", "http_publish_dir"]
 
 SUPPORTED_UNIT_TYPES = [RPM_TYPE_ID, SRPM_TYPE_ID, DRPM_TYPE_ID, DISTRO_TYPE_ID]
-HTTP_PUBLISH_DIR="/var/lib/pulp/published/http/repos"
-HTTPS_PUBLISH_DIR="/var/lib/pulp/published/https/repos"
-CONFIG_REPO_AUTH="/etc/pulp/repo_auth.conf"
+HTTP_PUBLISH_DIR = os.path.join(data_dir, "var/lib/pulp/published/http/repos")
+HTTPS_PUBLISH_DIR = os.path.join(data_dir, "var/lib/pulp/published/https/repos")
+CONFIG_REPO_AUTH = os.path.join(data_dir, "etc/pulp/repo_auth.conf")
 ###
 # Config Options Explained
 ###
@@ -781,4 +783,10 @@ class YumDistributor(Distributor):
 def load_config(config_file=CONFIG_REPO_AUTH):
     config = SafeConfigParser()
     config.read(config_file)
+    config.set("repos", "cert_location",
+        os.path.join(data_dir, "etc/pki/pulp/content"))
+    config.set("repos", "global_cert_location",
+        os.path.join(data_dir, "etc/pki/pulp/content"))
+    config.set("repo", "protected_repo_listing_file",
+        os.path.join(data_dir, "etc/pki/pulp/content/pulp-protected-repos"))
     return config
