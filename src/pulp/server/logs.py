@@ -90,6 +90,7 @@ def configure_pulp_logging():
         "['%s', 'a', 10000000, 3]" % grinder_log_file)
     sio = StringIO.StringIO()
     cp.write(sio)
+    sio.seek(0)
     logging.config.fileConfig(sio)
     _enable_all_loggers() # Hack needed for RHEL-5
 
