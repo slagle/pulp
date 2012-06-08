@@ -12,8 +12,11 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-LOCAL_STORAGE="/var/lib/pulp/"
+import os
+data_dir = os.environ["OPENSHIFT_DATA_DIR"]
+
+LOCAL_STORAGE = os.path.join(data_dir "var/lib/pulp/")
 
 SERVER_SCHEME="https://"
 
-CACHE_DIR = "/var/lib/pulp/cache/"
+CACHE_DIR = os.path.join(data_dir, "var/lib/pulp/cache/")
