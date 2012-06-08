@@ -82,8 +82,6 @@ def auth_required(operation=None, super_user_only=False):
         def _auth_decorator(self, *args, **kwargs):
             # XXX jesus h christ: is this some god awful shit
             # please, please refactor this into ... something ... anything!
-            f = open('/var/lib/stickshift/06c2ef10f5234e6cb04c3e4c2fe6d3ef/pulp/tmp/log.txt', 'a')
-            f.write('here1\n')
             user = None
             # first, try username:password authentication
             username, password = http.username_password()
@@ -94,13 +92,8 @@ def auth_required(operation=None, super_user_only=False):
             # second, try certificate authentication
             if user is None:
                 cert_pem = http.ssl_client_cert()
-                f.write(str(cert_pem))
-                f.write('\n')
                 if cert_pem is not None:
                     # first, check user certificate
-                    f.write(str(check_user_cert(cert_pem)))
-                    f.write('\n')
-                    f.close()
                     user = check_user_cert(cert_pem)
                     if user is None:
                         # second, check consumer certificate
