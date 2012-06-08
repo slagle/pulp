@@ -787,6 +787,6 @@ def load_config(config_file=CONFIG_REPO_AUTH):
         os.path.join(data_dir, "etc/pki/pulp/content"))
     config.set("repos", "global_cert_location",
         os.path.join(data_dir, "etc/pki/pulp/content"))
-    config.set("repo", "protected_repo_listing_file",
+    config.set("repos", "protected_repo_listing_file",
         os.path.join(data_dir, "etc/pki/pulp/content/pulp-protected-repos"))
     return config
