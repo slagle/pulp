@@ -40,6 +40,9 @@ FMT = \
             LINE,
             MSG,))
 
+data_dir = os.environ["OPENSHIFT_DATA_DIR"]
+pulp_log_file = os.path.join(data_dir, "var/log/pulp/pulp.log")
+grinder_log_file = os.path.join(data_dir, "var/log/pulp/grinder.log")
 
 # logging configuration -------------------------------------------------------
 
@@ -77,7 +80,12 @@ def configure_pulp_logging():
     log_config_filename = config.config.get('logs', 'config')
     if not os.access(log_config_filename, os.R_OK):
         raise RuntimeError("Unable to read log configuration file: %s" % (log_config_filename))
-    logging.config.fileConfig(log_config_filename)
+    defaults = {}
+    defaults["handler_pulp_file"] = dict(
+        args="['%s', 'a', 10000000, 3]" % pulp_log_file)
+    defaults["handler_grinder_file"] = dict(
+        args="['%s', 'a', 10000000, 3]" % grinder_log_file)
+    logging.config.fileConfig(log_config_filename, defaults=defaults)
     _enable_all_loggers() # Hack needed for RHEL-5
 
 def configure_audit_logging():
