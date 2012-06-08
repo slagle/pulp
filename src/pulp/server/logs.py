@@ -81,10 +81,10 @@ def configure_pulp_logging():
     if not os.access(log_config_filename, os.R_OK):
         raise RuntimeError("Unable to read log configuration file: %s" % (log_config_filename))
     defaults = {}
-    defaults["handler_pulp_file"] = dict(
-        args="['%s', 'a', 10000000, 3]" % pulp_log_file)
-    defaults["handler_grinder_file"] = dict(
-        args="['%s', 'a', 10000000, 3]" % grinder_log_file)
+    defaults["handler_pulp_file"] = \
+        {"args":"['%s', 'a', 10000000, 3]" % pulp_log_file}
+    defaults["handler_grinder_file"] = \
+        {"args":"['%s', 'a', 10000000, 3]" % grinder_log_file}
     logging.config.fileConfig(log_config_filename, defaults=defaults)
     _enable_all_loggers() # Hack needed for RHEL-5
 
