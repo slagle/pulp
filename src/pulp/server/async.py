@@ -17,7 +17,11 @@ from logging import getLogger
 
 
 from pulp.server import config
-from pulp.server.agent import Agent
+# Workaround PAM import error in OpenShift
+try:
+    from pulp.server.agent import Agent
+ImportError:
+    pass
 from pulp.server.db.model.persistence import TaskSnapshot
 from pulp.server.tasking.exception import (
     NonUniqueTaskException, DuplicateSnapshotError, UnscheduledTaskException)
