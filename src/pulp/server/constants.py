@@ -15,7 +15,7 @@
 import os
 data_dir = os.environ["OPENSHIFT_DATA_DIR"]
 
-LOCAL_STORAGE = os.path.join(data_dir "var/lib/pulp/")
+LOCAL_STORAGE = os.path.join(data_dir, "var/lib/pulp/")
 
 SERVER_SCHEME="https://"
 
