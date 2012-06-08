@@ -20,6 +20,7 @@ from pulp.server import config
 # Workaround PAM import error in OpenShift
 try:
     from pulp.server.agent import Agent
+    from gofer.rmi.async import WatchDog
 except ImportError:
     pass
 from pulp.server.db.model.persistence import TaskSnapshot
@@ -28,7 +29,6 @@ from pulp.server.tasking.exception import (
 from pulp.server.tasking.task import Task, AsyncTask
 from pulp.server.tasking.taskqueue.queue import TaskQueue
 from pulp.server.tasking.taskqueue.storage import SnapshotStorage
-from gofer.rmi.async import WatchDog
 
 
 
