@@ -18,6 +18,12 @@ import shutil
 import sys
 
 data_dir = os.environ["OPENSHIFT_DATA_DIR"]
+log_dir = os.path.join(data_dir, "var/log")
+pulp_log_dir = os.path.join(log_dir, "pulp")
+lib_dir = os.path.join(data_dir, "var/lib")
+pulp_lib_dir = os.path.join(lib_dir, "pulp")
+pki_dir = os.path.join(data_dir, "etc/pki")
+pulp_pki_dir = os.path.join(pki_dir, "pulp")
 
 DIRS = (
     '/etc',
@@ -174,20 +180,24 @@ def install(opts):
             continue
 
     # Link between pulp and apache
-    if not os.path.exists('/var/www/pub'):
-        os.symlink('/var/lib/pulp/published', '/var/www/pub')
+    # TODO: Not sure if this is needed for OpenShift, comment out for now
+    # if not os.path.exists('/var/www/pub'):
+        # os.symlink('/var/lib/pulp/published', '/var/www/pub')
 
     # Grant apache write access to the pulp tools log file and pulp
     # packages dir
-    os.system('chown -R apache:apache /var/log/pulp')
-    os.system('chown -R apache:apache /var/lib/pulp')
-    os.system('chown -R apache:apache /var/lib/pulp/published')
+
+    # Use current user insetad of apache for OpenShift
+    uid = os.getuid()
+    gid = os.getgid()
+
+    os.system('chown -R %s:%s %s' % (uid, gid, pulp_log_dir))
+    os.system('chown -R %s:%s %s' % (uid, gid, pulp_lib_dir))
     # guarantee apache always has write permissions
-    os.system('chmod 3775 /var/log/pulp')
-    os.system('chmod 3775 /var/www/pub')
-    os.system('chmod 3775 /var/lib/pulp')
+    os.system('chmod 3775 %s' % pulp_log_dir)
+    os.system('chmod 3775 %s' % pulp_lib_dir)
     # Update for certs
-    os.system('chown -R apache:apache /etc/pki/pulp')
+    os.system('chown -R %s:%s %s' % (uid, gid, pulp_pki_dir))
 
     # Disable existing SSL configuration
     #if os.path.exists('/etc/httpd/conf.d/ssl.conf'):
