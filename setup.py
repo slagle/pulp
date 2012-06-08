@@ -17,6 +17,7 @@ from setuptools import setup, find_packages
 
 requires = [
     'web.py', 'pymongo', 'simplejson', 'isodate', 'oauth2', 'BeautifulSoup',
+    'm2crypto',
 ]
 
 setup(
