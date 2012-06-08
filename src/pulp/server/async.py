@@ -20,7 +20,7 @@ from pulp.server import config
 # Workaround PAM import error in OpenShift
 try:
     from pulp.server.agent import Agent
-ImportError:
+except ImportError:
     pass
 from pulp.server.db.model.persistence import TaskSnapshot
 from pulp.server.tasking.exception import (
