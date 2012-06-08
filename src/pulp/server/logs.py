@@ -16,6 +16,8 @@ import logging.config
 import os
 import sys
 from logging import handlers
+import ConfigParser
+import StringIO
 
 from pulp.server import config
 
@@ -80,12 +82,15 @@ def configure_pulp_logging():
     log_config_filename = config.config.get('logs', 'config')
     if not os.access(log_config_filename, os.R_OK):
         raise RuntimeError("Unable to read log configuration file: %s" % (log_config_filename))
-    defaults = {}
-    defaults["handler_pulp_file"] = \
-        {"args":"['%s', 'a', 10000000, 3]" % pulp_log_file}
-    defaults["handler_grinder_file"] = \
-        {"args":"['%s', 'a', 10000000, 3]" % grinder_log_file}
-    logging.config.fileConfig(log_config_filename, defaults=defaults)
+    cp = ConfigParser.ConfigParser()
+    cp.read(log_config_filename)
+    cp.set("handler_pulp_file", "args",
+        "['%s', 'a', 10000000, 3]" % pulp_log_file)
+    cp.set("handler_grinder_file", "args",
+        "['%s', 'a', 10000000, 3]" % grinder_log_file)
+    sio = StringIO.StringIO()
+    cp.write(sio)
+    logging.config.fileConfig(sio)
     _enable_all_loggers() # Hack needed for RHEL-5
 
 def configure_audit_logging():
