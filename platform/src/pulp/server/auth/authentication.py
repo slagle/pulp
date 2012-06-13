@@ -20,7 +20,7 @@ import logging
 import oauth2
 
 from pulp.server.api.user import UserApi
-from pulp.server.auth import cert_generator, ldap_connection
+from pulp.server.auth import cert_generator
 from pulp.server.auth.authorization import consumer_users_role
 from pulp.server.auth.cert_generator import verify_cert
 from pulp.server.auth.certificate import Certificate
@@ -29,7 +29,7 @@ from pulp.server.config import config
 from pulp.server.exceptions import PulpException
 
 try:
-    from pulp.server.LDAPConnection import LDAPConnection
+    from pulp.server.auth import ldap_connection
 except ImportError:
     _have_ldap = False
 else:
