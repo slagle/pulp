@@ -126,7 +126,6 @@ _default_values = {
 # to add a default configuration file, list the full path here
 _config_files = [ os.path.join(data_dir, 'etc/pulp/repo_auth.conf'),
                   os.path.join(data_dir, 'etc/pulp/server.conf')]
-_config_files = ['/etc/pulp/repo_auth.conf', '/etc/pulp/server.conf']
 
 # configuration api -----------------------------------------------------------
 
