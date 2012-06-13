@@ -63,7 +63,7 @@ DIRS = (
 #
 LINKS = (
     'etc/bash_completion.d/pulp-admin',
-    'etc/pulp/pulp.conf',
+    'etc/pulp/server.conf',
     'etc/pulp/repo_auth.conf',
     'etc/pulp/admin/admin.conf',
     'etc/pulp/admin/task.conf',

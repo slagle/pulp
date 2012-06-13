@@ -24,11 +24,14 @@ DIRS = (
     '/etc/httpd/conf.d',
     '/etc/pulp',
     '/etc/pulp/admin',
+    '/etc/pulp/admin/conf.d',
     '/etc/pulp/consumer',
+    '/etc/pulp/consumer/conf.d',
     '/etc/pulp/distributor',
     '/etc/pulp/importer',
     '/etc/pulp/agent',
     '/etc/pulp/agent/handler',
+    '/etc/pulp/agent/conf.d',
     '/etc/gofer',
     '/etc/gofer/plugins',
     '/etc/pki/pulp',
@@ -37,7 +40,11 @@ DIRS = (
     '/srv/pulp',
     '/usr/lib/pulp/',
     '/usr/lib/pulp/agent',
-    '/usr/lib/pulp/agent/handler',
+    '/usr/lib/pulp/agent/handlers',
+    '/usr/lib/pulp/admin',
+    '/usr/lib/pulp/admin/extensions',
+    '/usr/lib/pulp/consumer',
+    '/usr/lib/pulp/consumer/extensions',
     '/usr/lib/gofer',
     '/usr/lib/gofer/plugins',
     '/usr/lib/yum-plugins/',
@@ -64,56 +71,64 @@ DIRS = (
 # Str entry assumes same src and dst relative path.
 # Tuple entry is explicit (src, dst)
 #
+# Please keep alphabetized and by subproject
+
+# Standard directories
+DIR_ADMIN_EXTENSIONS = '/usr/lib/pulp/admin/extensions/'
+DIR_CONSUMER_EXTENSIONS = '/usr/lib/pulp/consumer/extensions/'
+
 LINKS = (
-    'etc/bash_completion.d/pulp-admin',
-    'etc/pulp/pulp.conf',
-    'etc/pulp/repo_auth.conf',
-    'etc/pulp/admin/admin.conf',
-    'etc/pulp/admin/task.conf',
-    'etc/pulp/admin/job.conf',
-    'etc/pulp/admin/v2_admin.conf',
-    'etc/pulp/consumer/consumer.conf',
-    'etc/pulp/consumer/v2_consumer.conf',
-    'etc/pulp/agent/handler/rpm.conf',
-    'etc/pulp/agent/handler/bind.conf',
-    'etc/pulp/agent/handler/linux.conf',
-    'etc/httpd/conf.d/pulp.conf',
-    'etc/pki/pulp/ca.key',
-    'etc/pki/pulp/ca.crt',
-    'etc/gofer/plugins/pulp.conf',
-    'etc/gofer/plugins/pulpplugin.conf',
-    'etc/gofer/plugins/consumer.conf',
-    'etc/yum/pluginconf.d/pulp-profile-update.conf',
-    'etc/rc.d/init.d/pulp-server',
-    'srv/pulp/webservices.wsgi',
-    'srv/pulp/repo_auth.wsgi',
-    ('src/pulp/gc_client/agent/gofer/pulp.py', '/usr/lib/gofer/plugins/pulp.py'),
-    ('src/pulp/client/consumer/goferplugins/pulpplugin.py', '/usr/lib/gofer/plugins/pulpplugin.py'),
-    ('src/pulp/client/consumer/goferplugins/consumer.py', '/usr/lib/gofer/plugins/consumer.py'),
-    ('src/pulp/client/consumer/yumplugin/pulp-profile-update.py', '/usr/lib/yum-plugins/pulp-profile-update.py'),
-    ('etc/pulp/logging', '/etc/pulp/logging'),
-    ('extensions/pulp_admin_auth', '/var/lib/pulp_client/admin/extensions/pulp_admin_auth'),
-    ('extensions/pulp_admin_consumer', '/var/lib/pulp_client/admin/extensions/pulp_admin_consumer'),
-    ('extensions/pulp_consumer', '/var/lib/pulp_client/consumer/extensions/pulp_consumer'),
-    ('extensions/pulp_repo', '/var/lib/pulp_client/admin/extensions/pulp_repo'),
-    ('extensions/pulp_server_info', '/var/lib/pulp_client/admin/extensions/pulp_server_info'),
-    ('extensions/pulp_tasks', '/var/lib/pulp_client/admin/extensions/pulp_tasks'),
-    ('extensions/rpm_admin_consumer', '/var/lib/pulp_client/admin/extensions/rpm_admin_consumer'),
-    ('extensions/rpm_repo', '/var/lib/pulp_client/admin/extensions/rpm_repo'),
-    ('extensions/rpm_sync', '/var/lib/pulp_client/admin/extensions/rpm_sync'),
-    ('extensions/rpm_units_copy', '/var/lib/pulp_client/admin/extensions/rpm_units_copy'),
-    ('extensions/rpm_units_search', '/var/lib/pulp_client/admin/extensions/rpm_units_search'),
-    ('extensions/rpm_upload', '/var/lib/pulp_client/admin/extensions/rpm_upload'),
-    ('plugins/types/rpm.json', '/var/lib/pulp/plugins/types/rpm.json'),
-    ('plugins/types/srpm.json', '/var/lib/pulp/plugins/types/srpm.json'),
-    ('plugins/types/erratum.json', '/var/lib/pulp/plugins/types/erratum.json'),
-    ('plugins/types/drpm.json', '/var/lib/pulp/plugins/types/drpm.json'),
-    ('plugins/types/distribution.json', '/var/lib/pulp/plugins/types/distribution.json'),
-    ('plugins/importers/yum_importer', '/var/lib/pulp/plugins/importers/yum_importer'),
-    ('plugins/distributors/yum_distributor', '/var/lib/pulp/plugins/distributors/yum_distributor'),
-    ('handlers/rpm.py', '/usr/lib/pulp/agent/handler/rpm.py'),
-    ('handlers/bind.py', '/usr/lib/pulp/agent/handler/bind.py'),
-    ('handlers/linux.py', '/usr/lib/pulp/agent/handler/linux.py'),
+    ('builtins/extensions/pulp_admin_auth', DIR_ADMIN_EXTENSIONS + 'pulp_admin_auth'),
+    ('builtins/extensions/pulp_admin_consumer', DIR_ADMIN_EXTENSIONS + 'pulp_admin_consumer'),
+    ('builtins/extensions/pulp_consumer', DIR_CONSUMER_EXTENSIONS + 'pulp_consumer'),
+    ('builtins/extensions/pulp_repo', DIR_ADMIN_EXTENSIONS + 'pulp_repo'),
+    ('builtins/extensions/pulp_server_info', DIR_ADMIN_EXTENSIONS + 'pulp_server_info'),
+    ('builtins/extensions/pulp_tasks', DIR_ADMIN_EXTENSIONS + 'pulp_tasks'),
+
+    ('platform/bin/pulp-admin', '/usr/bin/pulp-admin'),
+    ('platform/bin/pulp-consumer', '/usr/bin/pulp-consumer'),
+    ('platform/bin/pulp-migrate', '/usr/bin/pulp-migrate'),
+
+    ('platform/etc/bash_completion.d/pulp-admin', '/etc/bash_completion.d/pulp-admin'),
+    ('platform/etc/httpd/conf.d/pulp.conf', '/etc/httpd/conf.d/pulp.conf'),
+    ('platform/etc/gofer/plugins/pulp.conf', '/etc/gofer/plugins/pulp.conf'),
+    ('platform/etc/gofer/plugins/pulpplugin.conf', '/etc/gofer/plugins/pulpplugin.conf'),
+    ('platform/etc/gofer/plugins/consumer.conf', '/etc/gofer/plugins/consumer.conf'),
+    ('platform/etc/pki/pulp/ca.key', '/etc/pki/pulp/ca.key'),
+    ('platform/etc/pki/pulp/ca.crt', '/etc/pki/pulp/ca.crt'),
+    ('platform/etc/pulp/server.conf', '/etc/pulp/server.conf'),
+    ('platform/etc/pulp/admin/admin.conf', '/etc/pulp/admin/admin.conf'),
+    ('platform/etc/pulp/consumer/consumer.conf', '/etc/pulp/consumer/consumer.conf'),
+    ('platform/etc/pulp/logging', '/etc/pulp/logging'),
+    ('platform/etc/rc.d/init.d/pulp-server', '/etc/rc.d/init.d/pulp-server'),
+
+    ('platform/src/pulp/agent/gofer/pulp.py', '/usr/lib/gofer/plugins/pulp.py'),
+    ('platform/srv/pulp/webservices.wsgi', '/srv/pulp/webservices.wsgi'),
+
+    ('rpm-support/etc/httpd/conf.d/pulp_rpm.conf', '/etc/httpd/conf.d/pulp_rpm.conf'),
+    ('rpm-support/etc/pulp/repo_auth.conf', '/etc/pulp/repo_auth.conf'),
+    ('rpm-support/etc/pulp/agent/handler/rpm.conf', '/etc/pulp/agent/handler/rpm.conf'),
+    ('rpm-support/etc/pulp/agent/handler/bind.conf', '/etc/pulp/agent/handler/bind.conf'),
+    ('rpm-support/etc/pulp/agent/handler/linux.conf', '/etc/pulp/agent/handler/linux.conf'),
+    ('rpm-support/etc/yum/pluginconf.d/pulp-profile-update.conf', '/etc/yum/pluginconf.d/pulp-profile-update.conf'),
+
+    ('rpm-support/extensions/rpm_admin_consumer', DIR_ADMIN_EXTENSIONS + 'rpm_admin_consumer'),
+    ('rpm-support/extensions/rpm_repo', DIR_ADMIN_EXTENSIONS + 'rpm_repo'),
+    ('rpm-support/extensions/rpm_sync', DIR_ADMIN_EXTENSIONS + 'rpm_sync'),
+    ('rpm-support/extensions/rpm_units_copy', DIR_ADMIN_EXTENSIONS + 'rpm_units_copy'),
+    ('rpm-support/extensions/rpm_units_search', DIR_ADMIN_EXTENSIONS + 'rpm_units_search'),
+    ('rpm-support/extensions/rpm_upload', DIR_ADMIN_EXTENSIONS + 'rpm_upload'),
+
+    ('rpm-support/handlers/rpm.py', '/usr/lib/pulp/agent/handler/rpm.py'),
+    ('rpm-support/handlers/bind.py', '/usr/lib/pulp/agent/handler/bind.py'),
+    ('rpm-support/handlers/linux.py', '/usr/lib/pulp/agent/handler/linux.py'),
+
+    ('rpm-support/plugins/types/rpm_support.json', '/var/lib/pulp/plugins/types/rpm_support.json'),
+    ('rpm-support/plugins/importers/yum_importer', '/var/lib/pulp/plugins/importers/yum_importer'),
+    ('rpm-support/plugins/distributors/yum_distributor', '/var/lib/pulp/plugins/distributors/yum_distributor'),
+
+    ('rpm-support/src/pulp/client/consumer/yumplugin/pulp-profile-update.py', '/usr/lib/yum-plugins/pulp-profile-update.py'),
+    ('rpm-support/srv/pulp/repo_auth.wsgi', '/srv/pulp/repo_auth.wsgi'),
     )
 
 def parse_cmdline():
@@ -180,8 +195,9 @@ def install(opts):
     currdir = os.path.abspath(os.path.dirname(__file__))
     for src, dst in getlinks():
         debug(opts, 'creating link: %s' % dst)
+        target = os.path.join(currdir, src)
         try:
-            os.symlink(os.path.join(currdir, src), dst)
+            os.symlink(target, dst)
         except OSError, e:
             if e.errno != 17:
                 raise
@@ -197,16 +213,13 @@ def install(opts):
     os.system('chown -R apache:apache /var/log/pulp')
     os.system('chown -R apache:apache /var/lib/pulp')
     os.system('chown -R apache:apache /var/lib/pulp/published')
-    # guarantee apache always has write permissions
+
+    # Guarantee apache always has write permissions
     os.system('chmod 3775 /var/log/pulp')
     os.system('chmod 3775 /var/www/pub')
     os.system('chmod 3775 /var/lib/pulp')
     # Update for certs
     os.system('chown -R apache:apache /etc/pki/pulp')
-
-    # Disable existing SSL configuration
-    #if os.path.exists('/etc/httpd/conf.d/ssl.conf'):
-    #    shutil.move('/etc/httpd/conf.d/ssl.conf', '/etc/httpd/conf.d/ssl.off')
 
     return os.EX_OK
 
@@ -214,7 +227,7 @@ def install(opts):
 def uninstall(opts):
     for src, dst in getlinks():
         debug(opts, 'removing link: %s' % dst)
-        if not os.path.exists(dst):
+        if not os.path.islink(dst):
             debug(opts, '%s does not exist, skipping' % dst)
             continue
         os.unlink(dst)
