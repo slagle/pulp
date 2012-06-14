@@ -22,6 +22,7 @@ import uuid
 from gettext import gettext as _
 
 from pulp.common import dateutils
+from pulp.server.db import connection
 from pulp.server.dispatch import call
 from pulp.server.dispatch import constants as dispatch_constants
 from pulp.server.dispatch import context as dispatch_context
@@ -93,6 +94,7 @@ class Task(object):
         """
         Run the call request.
         """
+        connection.authenticate()
         assert self.call_report.state in dispatch_constants.CALL_READY_STATES
         self.call_report.state = dispatch_constants.CALL_RUNNING_STATE
         self.call_report.start_time = datetime.datetime.now(dateutils.utc_tz())
@@ -208,6 +210,7 @@ class AsyncTask(Task):
         """
         Run the call request
         """
+        connection.authenticate()
         assert self.call_report.state in dispatch_constants.CALL_READY_STATES
         self.call_report.state = dispatch_constants.CALL_RUNNING_STATE
         self.call_report.start_time = datetime.datetime.now(dateutils.utc_tz())
