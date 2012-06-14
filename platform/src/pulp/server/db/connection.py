@@ -57,7 +57,7 @@ def initialize(name=None, seeds=None):
 
 def disconnect():
 
-    global _conncetion, _database
+    global _connection, _database
     _connection.disconnect()
 
     _connection = _database = None
