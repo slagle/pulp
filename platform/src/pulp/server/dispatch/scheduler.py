@@ -27,6 +27,7 @@ import isodate
 from pulp.common import dateutils
 from pulp.common.tags import resource_tag
 from pulp.server import exceptions as pulp_exceptions
+from pulp.server.db import connection
 from pulp.server.db.model.dispatch import ScheduledCall
 from pulp.server.dispatch import call
 from pulp.server.dispatch import constants as dispatch_constants
@@ -66,6 +67,7 @@ class Scheduler(object):
         """
         Dispatcher thread loop
         """
+        connection.reconnect()
         self.__lock.acquire()
         while True:
             self.__condition.wait(timeout=self.dispatch_interval)

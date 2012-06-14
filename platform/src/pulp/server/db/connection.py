@@ -55,6 +55,18 @@ def initialize(name=None, seeds=None):
         _database = None
         raise
 
+def disconnect():
+
+    global _conncetion, _database
+    _connection.disconnect()
+
+    _connection = _database = None
+
+def reconnect():
+
+    disconnect()
+    initialize()
+
 # collection wrapper class -----------------------------------------------------
 
 class PulpCollectionFailure(PulpException):
