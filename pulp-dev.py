@@ -14,8 +14,15 @@
 
 import optparse
 import os
+import pwd
 import shutil
 import sys
+
+pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
+pulp_log_dir = os.path.join(pulp_top_dir, "var/log/pulp")
+pulp_lib_dir = os.path.join(pulp_top_dir, "var/lib/pulp")
+pulp_pki_dir = os.path.join(pulp_top_dir, "etc/pki/pulp")
+pub_dir = os.path.join(pulp_top_dir, "var/www/pub")
 
 DIRS = (
     '/etc',
@@ -36,8 +43,11 @@ DIRS = (
     '/etc/gofer/plugins',
     '/etc/pki/pulp',
     '/etc/pki/pulp/content',
+    '/etc/rc.d/init.d',
+    '/etc/yum/pluginconf.d',
     '/srv',
     '/srv/pulp',
+    '/usr/bin',
     '/usr/lib/pulp/',
     '/usr/lib/pulp/agent',
     '/usr/lib/pulp/agent/handlers',
@@ -149,6 +159,11 @@ def parse_cmdline():
     parser.add_option('-D', '--debug',
                       action='store_true',
                       help=optparse.SUPPRESS_HELP)
+    parser.add_option('-A', '--apache-user',
+                      action='store',
+                      help=('system user that will be running apache '
+                           '(defaults to apache)')
+                     )
 
     parser.set_defaults(install=False,
                         uninstall=False,
@@ -162,6 +177,9 @@ def parse_cmdline():
     if not (opts.install or opts.uninstall):
         parser.error('neither install or uninstall specified')
 
+    if not opts.apache_user:
+        opts.apache_user = 'apache'
+
     return (opts, args)
 
 
@@ -173,6 +191,9 @@ def debug(opts, msg):
 
 def create_dirs(opts):
     for d in DIRS:
+        if d.startswith('/'):
+            d = d[1:]
+        d = os.path.join(pulp_top_dir, d)
         debug(opts, 'creating directory: %s' % d)
         if os.path.exists(d) and os.path.isdir(d):
             debug(opts, '%s exists, skipping' % d)
@@ -189,6 +210,9 @@ def getlinks():
         else:
             src = l
             dst = os.path.join('/', l)
+        if dst.startswith('/'):
+            dst = dst[1:]
+        dst = os.path.join(pulp_top_dir, dst)
         links.append((src, dst))
     return links
 
@@ -208,21 +232,21 @@ def install(opts):
             continue
 
     # Link between pulp and apache
-    if not os.path.exists('/var/www/pub'):
-        os.symlink('/var/lib/pulp/published', '/var/www/pub')
+    if not os.path.exists(pub_dir):
+        os.symlink(os.path.join(pulp_lib_dir, "published"), pub_dir)
 
-    # Grant apache write access to the pulp tools log file and pulp
-    # packages dir
-    os.system('chown -R apache:apache /var/log/pulp')
-    os.system('chown -R apache:apache /var/lib/pulp')
-    os.system('chown -R apache:apache /var/lib/pulp/published')
+    # Grant write access to the pulp tools log file and pulp
+    # packages dir for the apache user
+    uid, gid = pwd.getpwnam(opts.apache_user)[2:4]
 
-    # Guarantee apache always has write permissions
-    os.system('chmod 3775 /var/log/pulp')
-    os.system('chmod 3775 /var/www/pub')
-    os.system('chmod 3775 /var/lib/pulp')
+    os.system('chown -R %s:%s %s' % (uid, gid, pulp_log_dir))
+    os.system('chown -R %s:%s %s' % (uid, gid, pulp_lib_dir))
+    os.system('chown -R %s:%s %s' % (uid, gid, os.path.join(pulp_lib_dir, 'published')))
+    # guarantee apache always has write permissions
+    os.system('chmod 3775 %s' % pulp_log_dir)
+    os.system('chmod 3775 %s' % pulp_lib_dir)
     # Update for certs
-    os.system('chown -R apache:apache /etc/pki/pulp')
+    os.system('chown -R %s:%s %s' % (uid, gid, pulp_pki_dir))
 
     return os.EX_OK
 
@@ -236,12 +260,12 @@ def uninstall(opts):
         os.unlink(dst)
 
     # Link between pulp and apache
-    if os.path.exists('/var/www/pub'):
-        os.unlink('/var/www/pub')
+    if os.path.exists(pub_dir):
+        os.unlink(pub_dir)
 
     # Old link between pulp and apache, make sure it's cleaned up
-    if os.path.exists('/var/www/html/pub'):
-        os.unlink('/var/www/html/pub')
+    if os.path.exists(os.path.join(pulp_top_dir, 'var/www/html/pub')):
+        os.unlink(os.path.join(pulp_top_dir, 'var/www/html/pub'))
 
     return os.EX_OK
 
