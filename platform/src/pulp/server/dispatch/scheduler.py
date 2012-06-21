@@ -17,17 +17,13 @@ import threading
 from gettext import gettext as _
 from pprint import pformat
 
-try:
-    from bson.objectid import ObjectId
-except ImportError:
-    from pymongo.objectid import ObjectId
-
 import isodate
 
 from pulp.common import dateutils
 from pulp.common.tags import resource_tag
 from pulp.server import exceptions as pulp_exceptions
 from pulp.server.db import connection
+from pulp.server.compat import ObjectId
 from pulp.server.db.model.dispatch import ScheduledCall
 from pulp.server.dispatch import call
 from pulp.server.dispatch import constants as dispatch_constants
@@ -198,7 +194,7 @@ class Scheduler(object):
 
         last_run = scheduled_call['last_run']
         if last_run is None:
-            return scheduled_call['first_run']
+            return scheduled_call['first_run'] # this was calculated by the model constructor
 
         now = datetime.datetime.utcnow()
         interval = dateutils.parse_iso8601_interval(scheduled_call['schedule'])[0]

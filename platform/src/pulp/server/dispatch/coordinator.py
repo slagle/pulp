@@ -13,6 +13,7 @@
 
 import copy
 import datetime
+import sys
 import time
 import types
 import uuid
@@ -27,6 +28,7 @@ from pulp.server.dispatch import history as dispatch_history
 from pulp.server.dispatch.call import CallRequest
 from pulp.server.dispatch.task import AsyncTask, Task
 from pulp.server.exceptions import OperationTimedOut
+from pulp.server.util import NoTopologicalOrderingExists, topological_sort
 
 # coordinator class ------------------------------------------------------------
 
@@ -127,25 +129,29 @@ class Coordinator(object):
         @return: list of call reports pertaining to the running of the request calls
         @rtype:  list of L{call.CallReport} instances
         """
-        job_id = self._generate_job_id()
+        task_group_id = self._generate_task_group_id()
+        task_list = []
         call_report_list = []
         for call_request in call_request_list:
-            task = self._create_task(call_request, job_id=job_id)
+            task = self._create_task(call_request, task_group_id=task_group_id)
+            task_list.append(task)
+        sorted_task_list = self._analyze_dependencies(task_list)
+        for task in sorted_task_list:
             self._run_task(task, False)
             call_report_list.append(copy.copy(task.call_report))
         return call_report_list
 
     # execution utilities ------------------------------------------------------
 
-    def _create_task(self, call_request, call_report=None, job_id=None):
+    def _create_task(self, call_request, call_report=None, task_group_id=None):
         """
         Create the task for the given call request.
         @param call_request: call request to encapsulate in a task
         @type  call_request: L{call.CallRequest} instance
         @param call_report: call report for call request
         @type  call_report: L{call.CallReport} instance or None
-        @param job_id: optional job id
-        @type  job_id: None or str
+        @param task_group_id: optional task group id
+        @type  task_group_id: None or str
         @return: task that encapsulates the call request
         @rtype:  L{Task} instance
         """
@@ -154,7 +160,7 @@ class Coordinator(object):
         else:
             task = AsyncTask(call_request, call_report)
         task.call_report.task_id = task.id
-        task.call_report.job_id = job_id
+        task.call_report.task_group_id = task_group_id
         return task
 
     def _run_task(self, task, synchronous=None, timeout=None):
@@ -182,7 +188,7 @@ class Coordinator(object):
             task.call_report.reasons = reasons
             if response is dispatch_constants.CALL_REJECTED_RESPONSE:
                 return
-            task.blocking_tasks = blocking
+            task.blocking_tasks.update(blocking)
             task.call_request.add_life_cycle_callback(dispatch_constants.CALL_ENQUEUE_LIFE_CYCLE_CALLBACK, GrantPermmissionsForTaskV2())
             task.call_request.add_life_cycle_callback(dispatch_constants.CALL_DEQUEUE_LIFE_CYCLE_CALLBACK, RevokePermissionsForTaskV2())
             task.call_request.add_life_cycle_callback(dispatch_constants.CALL_DEQUEUE_LIFE_CYCLE_CALLBACK, coordinator_dequeue_callback)
@@ -208,9 +214,9 @@ class Coordinator(object):
                 wait_for_task(task, dispatch_constants.CALL_COMPLETE_STATES,
                               poll_interval=self.task_state_poll_interval)
 
-    def _generate_job_id(self):
+    def _generate_task_group_id(self):
         """
-        Generate a unique job id.
+        Generate a unique task group id.
         @return: uuid string
         @rtype:  str
         """
@@ -220,12 +226,29 @@ class Coordinator(object):
         task_queue = dispatch_factory._task_queue()
         task_queue.lock()
         try:
-            job_id = str(uuid.uuid4())
-            return job_id
+            task_group_id = str(uuid.uuid4())
+            return task_group_id
         finally:
             task_queue.unlock()
 
-    # conflict resolution algorithm --------------------------------------------
+    # user-defined dependencies ------------------------------------------------
+
+    def _analyze_dependencies(self, task_list):
+        # build a dependency graph to check the user-defined dependencies
+        call_request_map = dict((task.call_request.id, task) for task in task_list)
+        dependency_graph = {}
+        for task in task_list:
+            dependency_graph[task] = [call_request_map[id] for id in task.call_request.dependencies]
+        # check the dependencies with a topological sort
+        try:
+            sorted_task_list = topological_sort(dependency_graph)
+        except NoTopologicalOrderingExists:
+            raise dispatch_exceptions.CircularDependencies(), None, sys.exc_info()[2]
+        # add the dependencies as actual blocking tasks
+        for task in sorted_task_list:
+            dependency_tasks = [call_request_map[id].id for id in task.call_request.dependencies]
+            task.blocking_tasks.update(dependency_tasks)
+        return sorted_task_list
 
     def _find_conflicts(self, resources):
         """
@@ -284,7 +307,7 @@ class Coordinator(object):
 
         Supported criteria:
          * task_id
-         * job_id
+         * task_group_id
          * state
          * call_name
          * class_name
@@ -293,7 +316,7 @@ class Coordinator(object):
          * resources
          * tags
         """
-        valid_criteria = set(('task_id', 'job_id', 'state', 'call_name',
+        valid_criteria = set(('task_id', 'task_group_id', 'state', 'call_name',
                               'class_name', 'args', 'kwargs', 'resources', 'tags'))
         provided_criteria = set(criteria.keys())
         superfluous_criteria = provided_criteria - valid_criteria
@@ -312,7 +335,7 @@ class Coordinator(object):
 
         Supported criteria:
          * task_id
-         * job_id
+         * task_group_id
          * state
          * call_name
          * class_name
@@ -360,18 +383,18 @@ class Coordinator(object):
             return None
         return task_queue.cancel(task)
 
-    def cancel_multiple_calls(self, job_id):
+    def cancel_multiple_calls(self, task_group_id):
         """
-        Cancel multiple call requests using the job id.
-        @param job_id: job id for multiple calls
-        @type  job_id: str
-        @return: dictionary of {task id: cancel return} for tasks associated with the job id
+        Cancel multiple call requests using the task_group id.
+        @param task_group_id: task_group id for multiple calls
+        @type  task_group_id: str
+        @return: dictionary of {task id: cancel return} for tasks associated with the task_group id
         @rtype:  dict
         """
         cancel_returns = {}
         task_queue = dispatch_factory._task_queue()
         for task in task_queue.all_tasks():
-            if job_id != task.call_report.job_id:
+            if task_group_id != task.call_report.task_group_id:
                 continue
             cancel_returns[task.id] = task_queue.cancel(task)
         return cancel_returns
@@ -499,7 +522,7 @@ def task_matches_criteria(task, criteria):
     """
     if 'task_id' in criteria and criteria['task_id'] != task.call_report.task_id:
         return False
-    if 'job_id' in criteria and criteria['job_id'] != task.call_report.job_id:
+    if 'task_group_id' in criteria and criteria['task_group_id'] != task.call_report.task_group_id:
         return False
     if 'state' in criteria and criteria['state'] != task.call_report.state:
         return False

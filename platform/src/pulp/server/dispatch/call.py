@@ -15,6 +15,7 @@ import itertools
 import logging
 import pickle
 import traceback
+import uuid
 from gettext import gettext as _
 from types import NoneType, TracebackType
 
@@ -31,6 +32,8 @@ class CallRequest(object):
     """
     Call request class
     Represents an asynchronous call request
+    @ivar id: unique id for this call request
+    @type id: str
     @ivar call: python callable
     @type call: callable
     @ivar args: list of positional arguments for the callable
@@ -39,6 +42,8 @@ class CallRequest(object):
     @type kwargs: dict
     @ivar resources: dictionary of resources and operations used by the request
     @type resources: dict
+    @ivar dependencies: dictionary of call request ids this call request depends on
+    @type dependencies: dict
     @ivar weight: weight of callable in relation concurrency resources
     @type weight: int
     @ivar execution_hooks: callbacks to be executed during lifecycle of callable
@@ -58,6 +63,7 @@ class CallRequest(object):
                  args=None,
                  kwargs=None,
                  resources=None,
+                 dependencies=None,
                  weight=1,
                  tags=None,
                  asynchronous=False,
@@ -67,16 +73,19 @@ class CallRequest(object):
         assert isinstance(args, (NoneType, tuple, list))
         assert isinstance(kwargs, (NoneType, dict))
         assert isinstance(resources, (NoneType, dict))
+        assert isinstance(dependencies, (NoneType, dict))
         assert isinstance(weight, int)
         assert weight > -1
         assert isinstance(tags, (NoneType, list))
         assert isinstance(asynchronous, bool)
         assert isinstance(archive, bool)
 
+        self.id = str(uuid.uuid4())
         self.call = call
         self.args = args or []
         self.kwargs = kwargs or {}
         self.resources = resources or {}
+        self.dependencies = dependencies or {}
         self.weight = weight
         self.tags = tags or []
         self.asynchronous = asynchronous
@@ -87,10 +96,10 @@ class CallRequest(object):
     def callable_name(self):
         name = getattr(self.call, '__name__', 'UNKNOWN_CALL')
         cls = getattr(self.call, 'im_class', None)
-        if cls is not None:
-            class_name = getattr(cls, '__name__', 'UNKNOWN_CLASS')
-            return '.'.join((class_name, name))
-        return name
+        if cls is None:
+            return name
+        class_name = getattr(cls, '__name__', 'UNKNOWN_CLASS')
+        return '.'.join((class_name, name))
 
     def callable_args_reprs(self):
         return [repr(a) for a in self.args]
@@ -101,8 +110,42 @@ class CallRequest(object):
     def __str__(self):
         args = ', '.join(self.callable_args_reprs())
         kwargs = ', '.join(['%s=%s' % (k, v) for k, v in self.callable_kwargs_reprs().items()])
-        all_args = ', '.join((args, kwargs))
+        all_args = ''
+        if args and kwargs:
+            all_args = ', '.join((args, kwargs))
+        elif args:
+            all_args = args
+        elif kwargs:
+            all_args = kwargs
         return 'CallRequest: %s(%s)' % (self.callable_name(), all_args)
+
+    # convenient resources management ------------------------------------------
+
+    def creates_resource(self, resource_type, resource_id):
+        assert resource_type in dispatch_constants.RESOURCE_TYPES
+        type_dict = self.resources.setdefault(resource_type, {})
+        type_dict.update({resource_id: dispatch_constants.RESOURCE_CREATE_OPERATION})
+
+    def reads_resource(self, resource_type, resource_id):
+        assert resource_type in dispatch_constants.RESOURCE_TYPES
+        type_dict = self.resources.setdefault(resource_type, {})
+        type_dict.update({resource_id: dispatch_constants.RESOURCE_READ_OPERATION})
+
+    def updates_resource(self, resource_type, resource_id):
+        assert resource_type in dispatch_constants.RESOURCE_TYPES
+        type_dict = self.resources.setdefault(resource_type, {})
+        type_dict.update({resource_id: dispatch_constants.RESOURCE_UPDATE_OPERATION})
+
+    def deletes_resource(self, resource_type, resource_id):
+        assert resource_type in dispatch_constants.RESOURCE_TYPES
+        type_dict = self.resources.setdefault(resource_type, {})
+        type_dict.update({resource_id: dispatch_constants.RESOURCE_DELETE_OPERATION})
+
+    # convenient dependency management -----------------------------------------
+
+    def depends_on(self, call_request, states=None):
+        # NOTE this overwrites any previous states associated with the call request
+        self.dependencies[call_request.id] = states
 
     # hooks management ---------------------------------------------------------
 
@@ -202,8 +245,8 @@ class CallReport(object):
     @type state: str
     @ivar task_id: identity of task executing call
     @type task_id: str
-    @ivar job_id: identity of job the call is a part of
-    @type job_id: str
+    @ivar task_group_id: identity of task group the call is a part of
+    @type task_group_id: str
     @ivar schedule_id: identity of the schedule that made this call
     @type schedule_id: str
     @ivar progress: dictionary of progress information
@@ -221,7 +264,7 @@ class CallReport(object):
                  reasons=None,
                  state=None,
                  task_id=None,
-                 job_id=None,
+                 task_group_id=None,
                  schedule_id=None,
                  progress=None,
                  result=None,
@@ -233,17 +276,18 @@ class CallReport(object):
         assert isinstance(reasons, (NoneType, list))
         assert isinstance(state, (NoneType, basestring))
         assert isinstance(task_id, (NoneType, basestring))
-        assert isinstance(job_id, (NoneType, basestring))
+        assert isinstance(task_group_id, (NoneType, basestring))
         assert isinstance(schedule_id, (NoneType, basestring))
         assert isinstance(progress, (NoneType, dict))
         assert isinstance(exception, (NoneType, Exception))
         assert isinstance(traceback, (NoneType, TracebackType))
 
+        self.call_request_id = None
         self.response = response
         self.reasons = reasons or []
         self.state = state
         self.task_id = task_id
-        self.job_id = job_id
+        self.task_group_id = task_group_id
         self.schedule_id = schedule_id
         self.progress = progress or {}
         self.result = result
@@ -255,7 +299,7 @@ class CallReport(object):
 
     def serialize(self):
         data = {}
-        for field in ('response', 'reasons', 'state', 'task_id', 'job_id',
+        for field in ('response', 'reasons', 'state', 'task_id', 'task_group_id',
                       'schedule_id', 'progress', 'result', 'tags'):
             data[field] = getattr(self, field)
         ex = getattr(self, 'exception')

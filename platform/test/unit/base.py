@@ -12,7 +12,6 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 
 import base64
-from ConfigParser import SafeConfigParser
 import httplib
 import logging
 import mock
@@ -32,13 +31,15 @@ except ImportError:
 srcdir = os.path.abspath(os.path.dirname(__file__)) + "/../../src/"
 sys.path.insert(0, srcdir)
 
-from pulp.server.api.user import UserApi
+from pulp.server.api.user import UserApi # deprecated, will be removed
 
 from pulp.bindings.bindings import Bindings
 from pulp.bindings.server import  PulpConnection
 
 from pulp.client.extensions.core import ClientContext, PulpPrompt, PulpCli
 from pulp.client.extensions.exceptions import ExceptionHandler
+
+from pulp.common.config import Config
 
 from pulp.server import constants
 from pulp.server import config
@@ -89,8 +90,6 @@ class PulpServerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         PulpServerTests.CONFIG = load_test_config()
-
-        super(PulpServerTests, cls).setUpClass()
         connection.initialize()
         manager_factory.initialize()
 
@@ -143,7 +142,7 @@ class PulpWebserviceTests(PulpServerTests):
 
     @classmethod
     def setUpClass(cls):
-        super(PulpWebserviceTests, cls).setUpClass()
+        PulpServerTests.setUpClass()
 
         # The application setup is somewhat time consuming and really only needs
         # to be done once. We might be able to move it out to a single call for
@@ -197,11 +196,7 @@ class PulpWebserviceTests(PulpServerTests):
         dispatch_factory.initialize()
 
     def teardown_async(self):
-        dispatch_factory._SCHEDULER.stop()
-        dispatch_factory._TASK_QUEUE.stop(clear_queued_calls=True)
-        dispatch_factory._SCHEDULER = None
-        dispatch_factory._COORDINATOR = None
-        dispatch_factory._TASK_QUEUE = None
+        dispatch_factory.finalize(clear_queued_calls=True)
 
     def get(self, uri, params=None, additional_headers=None):
         return self._do_request('get', uri, params, additional_headers)
@@ -301,9 +296,8 @@ class PulpClientTests(unittest.TestCase):
     def setUp(self):
         super(PulpClientTests, self).setUp()
 
-        self.config = SafeConfigParser()
         config_filename = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data', 'test-override-admin.conf')
-        self.config.read(config_filename)
+        self.config = Config(config_filename)
 
         self.server_mock = mock.Mock()
         self.pulp_connection = PulpConnection('', server_wrapper=self.server_mock)

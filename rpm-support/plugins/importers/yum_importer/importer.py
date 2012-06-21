@@ -20,19 +20,18 @@ import os
 import shutil
 import time
 
-from yum_importer.drpm import DRPM_TYPE_ID
+from yum_importer.comps import ImporterComps, PKG_GROUP_TYPE_ID, PKG_CATEGORY_TYPE_ID
 from yum_importer.distribution import DISTRO_TYPE_ID
-from yum_importer.importer_rpm import ImporterRPM, RPM_TYPE_ID, SRPM_TYPE_ID
+from yum_importer.drpm import DRPM_TYPE_ID
 from yum_importer.errata import ImporterErrata, ERRATA_TYPE_ID, link_errata_rpm_units
+from yum_importer.importer_rpm import ImporterRPM, RPM_TYPE_ID, SRPM_TYPE_ID
 
 from pulp.plugins.importer import Importer
-from pulp_rpm.yum_plugin import util
 from pulp.plugins.model import SyncReport
+from pulp_rpm.yum_plugin import util
 
 _ = gettext.gettext
 _LOG = logging.getLogger(__name__)
-#TODO Fix up logging so we log to a separate file to aid debugging
-#_LOG.addHandler(logging.FileHandler('/var/log/pulp/yum-importer.log'))
 
 YUM_IMPORTER_TYPE_ID="yum_importer"
 
@@ -40,7 +39,8 @@ REQUIRED_CONFIG_KEYS = []
 OPTIONAL_CONFIG_KEYS = ['feed_url', 'ssl_verify', 'ssl_ca_cert', 'ssl_client_cert', 'ssl_client_key',
                         'proxy_url', 'proxy_port', 'proxy_pass', 'proxy_user',
                         'max_speed', 'verify_size', 'verify_checksum', 'num_threads',
-                        'newest', 'remove_old', 'num_old_packages', 'purge_orphaned', 'skip_content_types', 'checksum_type']
+                        'newest', 'remove_old', 'num_old_packages', 'purge_orphaned', 'skip', 'checksum_type',
+                        'num_retries', 'retry_delay']
 ###
 # Config Options Explained
 ###
@@ -61,23 +61,26 @@ OPTIONAL_CONFIG_KEYS = ['feed_url', 'ssl_verify', 'ssl_ca_cert', 'ssl_client_cer
 # remove_old: Boolean option, if True remove old packages
 # num_old_packages: Defaults to 0, controls how many old packages to keep if remove_old is True
 # purge_orphaned: Defaults to True, when True will delete packages no longer available from the source repository
-# skip_content_types: List of what content types to skip during sync, options:
+# skip: List of what content types to skip during sync, options:
 #                     ["rpm", "drpm", "errata", "distribution", "packagegroup"]
 # checksum_type: checksum type to use for repodata; defaults to source checksum type or sha256
+# num_retries: Number of times to retry before declaring an error
+# retry_delay: Minimal number of seconds to wait before each retry
 
 class YumImporter(Importer):
     def __init__(self):
         super(YumImporter, self).__init__()
         self.canceled = False
-        self.importer_rpm = ImporterRPM()
+        self.comps = ImporterComps()
         self.errata = ImporterErrata()
+        self.importer_rpm = ImporterRPM()
 
     @classmethod
     def metadata(cls):
         return {
             'id'           : YUM_IMPORTER_TYPE_ID,
             'display_name' : 'Yum Importer',
-            'types'        : [RPM_TYPE_ID, SRPM_TYPE_ID, ERRATA_TYPE_ID, DRPM_TYPE_ID, DISTRO_TYPE_ID]
+            'types'        : [DISTRO_TYPE_ID, DRPM_TYPE_ID, ERRATA_TYPE_ID, PKG_GROUP_TYPE_ID, PKG_CATEGORY_TYPE_ID, RPM_TYPE_ID, SRPM_TYPE_ID]
         }
 
     def validate_config(self, repo, config, related_repos):
@@ -235,10 +238,10 @@ class YumImporter(Importer):
                     _LOG.error(msg)
                     return False, msg
 
-            if key == 'skip_content_types':
-                skip = config.get('skip_content_types')
+            if key == 'skip':
+                skip = config.get('skip')
                 if skip is not None and not isinstance(skip, list):
-                    msg = _("skip_content_types should be a list; got %s instead" % skip)
+                    msg = _("skip should be a list; got %s instead" % skip)
                     _LOG.error(msg)
                     return False, msg
 
@@ -349,17 +352,18 @@ class YumImporter(Importer):
             sync_conduit.set_progress(progress_status)
 
         sync_conduit.set_progress(progress_status)
+        summary = {}
+        details = {}
         # sync rpms
-        rpm_status, rpm_summary, rpm_details = self.importer_rpm.sync(repo, sync_conduit, config, progress_callback)
-        sync_conduit.set_progress(progress_status)
+        rpm_status, summary["packages"], details["packages"] = self.importer_rpm.sync(repo, sync_conduit, config, progress_callback)
 
         # sync errata
-        errata_status, errata_summary, errata_details = self.errata.sync(repo, sync_conduit, config, progress_callback)
-        sync_conduit.set_progress(progress_status)
+        errata_status, summary["errata"], details["errata"] = self.errata.sync(repo, sync_conduit, config, progress_callback)
 
-        summary = dict(rpm_summary.items() + errata_summary.items())
-        details = dict(rpm_details.items() + errata_details.items())
-        return (rpm_status and errata_status), summary, details
+        # sync groups (comps.xml) info
+        comps_status, summary["comps"], details["comps"] = self.comps.sync(repo, sync_conduit, config, progress_callback)
+
+        return (rpm_status and errata_status and comps_status), summary, details
 
     def upload_unit(self, repo, type_id, unit_key, metadata, file_path, conduit, config):
         _LOG.info("Upload Unit Invoked")
@@ -427,19 +431,19 @@ class YumImporter(Importer):
                 msg = "Error creating a symlink to repo working directory; Error %s" % e
                 _LOG.error(msg)
                 details['errors'].append(msg)
-            summary['state'] = 'FINISHED'
+            summary["state"] = "FINISHED"
             if len(details['errors']):
                 summary['num_errors'] = len(details['errors'])
-                summary['state'] = 'FAILED'
+                summary["state"] = "FAILED"
                 return False, summary, details
             _LOG.info("Upload complete with summary: %s; Details: %s" % (summary, details))
-        elif type_id == 'erratum':
+        elif type_id == "erratum":
             try:
                 u = conduit.init_unit(type_id, unit_key, metadata, None)
                 conduit.save_unit(u)
                 link_errata_rpm_units(conduit, {unit_key['id']: u})
             except Exception, e:
-                msg = "Error uploading errata unit %s ; Error %s" % (unit_key['id'], e)
+                msg = "Error uploading errata unit %s; Error %s" % (unit_key['id'], e)
                 _LOG.error(msg)
                 details['errors'].append(msg)
                 summary['state'] = 'FAILED'
@@ -448,6 +452,7 @@ class YumImporter(Importer):
 
     def cancel_sync_repo(self):
         self.canceled = True
+        self.comps.cancel_sync()
         self.errata.cancel_sync()
         self.importer_rpm.cancel_sync()
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2010-2011 Red Hat, Inc.
+# Copyright © 2010-2012 Red Hat, Inc.
 #
 # This software is licensed to you under the GNU General Public
 # License as published by the Free Software Foundation; either version
@@ -11,7 +11,6 @@
 # have received a copy of GPLv2 along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 
-import atexit
 import logging
 
 # XXX monkey patching web.py YUCK!
@@ -65,7 +64,7 @@ URLS = (
     '/v2/agent', agent.application,
     '/v2/consumers', consumers.application,
     '/v2/content', contents.application,
-    '/v2/jobs', dispatch.job_application,
+    '/v2/task_groups', dispatch.task_group_application,
     '/v2/plugins', plugins.application,
     '/v2/queued_calls', dispatch.queued_call_application,
     '/v2/repositories', repositories.application,

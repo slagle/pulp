@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2010 Red Hat, Inc.
+# Copyright © 2010-12 Red Hat, Inc.
 #
 # This software is licensed to you under the GNU General Public
 # License as published by the Free Software Foundation; either version
@@ -15,16 +15,9 @@ import logging
 from gettext import gettext as _
 
 import web
-try:
-    from bson import json_util
-except ImportError:
-    from pymongo import json_util
 
-from pulp.common import dateutils
-from pulp.server.compat import json
-from pulp.server.tasking.scheduler import (
-    ImmediateScheduler, AtScheduler, IntervalScheduler)
-from pulp.server.webservices import http
+from pulp.server.compat import json, json_util
+from pulp.server.webservices import http, serialization
 
 
 _log = logging.getLogger(__name__)
@@ -34,6 +27,27 @@ class JSONController(object):
     """
     Base controller class with convenience methods for JSON serialization
     """
+
+    # http methods ------------------------------------------------------------
+
+    def OPTIONS(self):
+        """
+        Handle an OPTIONS request from the client using introspection.
+
+        @return: serialized link object
+        """
+        all_methods = ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT']
+        defined_methods = []
+        for attr in self.__dict__:
+            if attr not in all_methods:
+                continue
+            if not callable(self.__dict__[attr]):
+                continue
+            defined_methods.append(attr)
+        link = {'methods': defined_methods}
+        link.update(serialization.link.current_link_obj())
+        return self.ok(link)
+
     # input methods -----------------------------------------------------------
 
     def params(self):
@@ -63,42 +77,6 @@ class JSONController(object):
         return http.query_parameters(valid)
 
     # result methods ----------------------------------------------------------
-
-    def _task_to_dict(self, task):
-        """
-        Convert a task to a dictionary (non-destructive) while retaining the
-        pertinent information for a status check but in a more convenient form
-        for JSON serialization.
-        @type task: Task instance
-        @param task: task to convert
-        @return dict representing task
-        """
-        fields = ('id', 'job_id', 'class_name', 'method_name', 'args', 'state', 'result',
-                  'exception', 'traceback', 'progress')
-        d = dict((f, getattr(task, f)) for f in fields)
-        # time fields must be in iso8601 format
-        fields = ('start_time', 'finish_time', 'scheduled_time')
-        for f in fields:
-            t = getattr(task, f, None)
-            d[f] = t and dateutils.format_iso8601_datetime(t)
-        # add scheduler information so we can differentiate between recurring
-        # and non-recurring tasks
-        d['scheduler'] = None
-        if isinstance(task.scheduler, ImmediateScheduler):
-            d['scheduler'] = 'immediate'
-        elif isinstance(task.scheduler, AtScheduler):
-            d['scheduler'] = 'at'
-        elif isinstance(task.scheduler, IntervalScheduler):
-            d['scheduler'] = 'interval'
-        return d
-
-    def _job_to_dict(self, job):
-        tasks = []
-        d = dict(id=job.id, tasks=tasks)
-        for t in job.tasks:
-            tasks.append(self._task_to_dict(t))
-        return d
-
 
     def filter_results(self, results, filters):
         """

@@ -81,7 +81,7 @@ def _check_username_password_ldap(username, password=None):
     ldap_tls = False
     if config.has_option('ldap', 'tls'):
         ldap_tls = config.getboolean('ldap', 'tls')
-    ldap_server = ldap_connection(server=ldap_uri, tls=ldap_tls)
+    ldap_server = ldap_connection.LDAPConnection(server=ldap_uri, tls=ldap_tls)
     ldap_server.connect()
     user = None
     if password is not None:
@@ -161,6 +161,19 @@ def check_user_cert(cert_pem):
     except PulpException:
         return None
     return check_username_password(username)
+
+def check_consumer_cert_no_user(cert_pem):
+    # TODO document me
+    cert = Certificate(content=cert_pem)
+    subject = cert.subject()
+    encoded_user = subject.get('CN', None)
+    if encoded_user is None:
+        return None
+    if not verify_cert(cert_pem):
+        _log.error('Auth certificate with CN [%s] is signed by a foreign CA' %
+                   encoded_user)
+        return None
+    return encoded_user
 
 def check_consumer_cert(cert_pem):
     # TODO document me

@@ -27,13 +27,15 @@ def get_sync_conduit(type_id=None, existing_units=None, pkg_dir=None):
         return unit
 
     def get_units(criteria=None):
-        ret_units = True
-        if criteria and hasattr(criteria, "type_ids"):
-            if type_id and type_id not in criteria.type_ids:
-                ret_units = False
-        if ret_units and existing_units:
-            return existing_units
-        return []
+        ret_val = []
+        if existing_units:
+            for u in existing_units:
+                if criteria:
+                    if u.type_id in criteria.type_ids:
+                        ret_val.append(u)
+                else:
+                    ret_val.append(u)
+        return ret_val
 
     sync_conduit = mock.Mock(spec=RepoSyncConduit)
     sync_conduit.init_unit.side_effect = side_effect
@@ -81,7 +83,7 @@ def get_upload_conduit(type_id=None, unit_key=None, metadata=None, relative_path
     return upload_conduit
 
 def get_basic_config(*arg, **kwargs):
-    plugin_config = {}
+    plugin_config = {"num_retries":0, "retry_delay":0}
     repo_plugin_config = {}
     for key in kwargs:
         repo_plugin_config[key] = kwargs[key]

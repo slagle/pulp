@@ -13,13 +13,8 @@
 
 import logging
 
-try:
-    import json
-except ImportError:
-    import simplejson as json
-
+from pulp.server.compat import json, http_responses
 from pulp.server.exceptions import OperationPostponed
-from pulp.server.webservices.http import http_responses
 from pulp.server.webservices import serialization
 
 

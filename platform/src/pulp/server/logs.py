@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2010 Red Hat, Inc.
+# Copyright © 2010-2012 Red Hat, Inc.
 #
 # This software is licensed to you under the GNU General Public
 # License as published by the Free Software Foundation; either version
@@ -14,37 +14,13 @@
 import logging
 import logging.config
 import os
-import sys
-from logging import handlers
-import ConfigParser
-import StringIO
 
 from pulp.server import config
 
 
-TIME = '%(asctime)s'
-LEVEL = ' [%(levelname)s]'
-THREAD = '[%(threadName)s]'
-FUNCTION = ' %(funcName)s()'
-FILE = ' @ %(filename)s'
-LINE = ':%(lineno)d'
-MSG = ' - %(message)s'
-
-if sys.version_info < (2,5):
-    FUNCTION = ''
-
-FMT = \
-    ''.join((TIME,
-            LEVEL,
-            THREAD,
-            FUNCTION,
-            FILE,
-            LINE,
-            MSG,))
-
-data_dir = os.environ["OPENSHIFT_DATA_DIR"]
-pulp_log_file = os.path.join(data_dir, "var/log/pulp/pulp.log")
-grinder_log_file = os.path.join(data_dir, "var/log/pulp/grinder.log")
+pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
+pulp_log_file = os.path.join(pulp_top_dir, "var/log/pulp/pulp.log")
+grinder_log_file = os.path.join(pulp_top_dir, "var/log/pulp/grinder.log")
 
 # logging configuration -------------------------------------------------------
 
@@ -94,34 +70,6 @@ def configure_pulp_logging():
     logging.config.fileConfig(sio)
     _enable_all_loggers() # Hack needed for RHEL-5
 
-def configure_audit_logging():
-    """
-    Pull the audit logging configuration from the global config and/or default
-    config and initialize pulp's audit logging.
-    """
-    file = config.config.get('auditing', 'events_file')
-    check_log_file(file)
-    units = 'D'
-    backups = config.config.getint('auditing', 'backups')
-    lifetime = config.config.getint('auditing', 'lifetime')
-
-    # the logging module will get into an infinite loop if the interval is 0
-    if lifetime <= 0:
-        units = 'H'
-        lifetime = 1
-
-    # NOTE, this cannot be a descendant of the pulp log as it will inherit
-    # pulp's rotating log and handler and log to both files. Yes, I've tried
-    # removing the handler to no avail...
-    logger = logging.getLogger('auditing')
-    logger.setLevel(logging.INFO)
-    logger.propagate = 0 # Disables auditing going to regular log output
-    handler = handlers.TimedRotatingFileHandler(file,
-                                                when=units,
-                                                interval=lifetime,
-                                                backupCount=backups)
-    logger.addHandler(handler)
-
 # pulp logging api ------------------------------------------------------------
 
 started = False
@@ -135,7 +83,6 @@ def start_logging():
     if started:
         return
     configure_pulp_logging()
-    configure_audit_logging()
     started = True
 
 

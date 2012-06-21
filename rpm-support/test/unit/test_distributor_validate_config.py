@@ -20,9 +20,10 @@ from pulp_rpm.repo_auth.repo_cert_utils import M2CRYPTO_HAS_CRL_SUPPORT
 
 import distributor_mocks
 import mock
+import rpm_support_base
 import unittest
 
-class TestValidateConfig(unittest.TestCase):
+class TestValidateConfig(rpm_support_base.PulpRPMTests):
 
     def setUp(self):
         super(TestValidateConfig, self).setUp()
@@ -132,13 +133,13 @@ class TestValidateConfig(unittest.TestCase):
         relative_url = "test_path"
         skip_content_types = "fake"
         config = distributor_mocks.get_basic_config(relative_url=relative_url, http=http, https=https,
-            skip_content_types=skip_content_types)
+            skip=skip_content_types)
         state, msg = self.distributor.validate_config(self.repo, config, [])
         self.assertFalse(state)
 
         skip_content_types = []
         config = distributor_mocks.get_basic_config(relative_url=relative_url, http=http, https=https,
-            skip_content_types=skip_content_types)
+            skip=skip_content_types)
         state, msg = self.distributor.validate_config(self.repo, config, [])
         self.assertTrue(state)
 

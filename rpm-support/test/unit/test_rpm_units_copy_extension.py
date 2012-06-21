@@ -22,19 +22,19 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)) + '/../../extensions/admin')
 
-import base
+import rpm_support_base
 import rpm_units_copy.pulp_cli
 
 from pulp.bindings.responses import STATE_WAITING
 from pulp.client.extensions.core import TAG_FAILURE, TAG_PARAGRAPH
 
-class UnitCopyTests(base.PulpClientTests):
+class UnitCopyTests(rpm_support_base.PulpClientTests):
 
     def test_copy(self):
         # Setup
         command = rpm_units_copy.pulp_cli.CopyCommand(self.context, 'copy', 'copy', 'copy', 'rpm')
         task_data = {'task_id' : 'abc',
-                     'job_id' : None,
+                     'task_group_id' : None,
                      'tags' : [],
                      'start_time' : None,
                      'finish_time' : None,

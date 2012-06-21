@@ -117,9 +117,7 @@ class TaskQueue(object):
             self.__waiting_tasks.remove(task)
             self.__running_tasks.append(task)
             self.__running_weight += task.call_request.weight
-            task_thread = threading.Thread(target=task.run)
-            task_thread.start()
-            task.call_life_cycle_callbacks(dispatch_constants.CALL_RUN_LIFE_CYCLE_CALLBACK)
+            task.run()
         finally:
             self.__lock.release()
 
@@ -286,15 +284,10 @@ class TaskQueue(object):
         Cancel a task's execution, if it has a cancel control hook
         @param task: task to be canceled
         @type  task: pulp.server.dispatch.task.Task
-        @return: True if the task was marked for cancellation, False otherwise
-        @rtype:  bool
         """
         self.__lock.acquire()
         try:
-            if task.call_request.control_hooks[dispatch_constants.CALL_CANCEL_CONTROL_HOOK] is None:
-                return False
-            self.__canceled_tasks.append(task)
-            return True
+            task.cancel()
         finally:
             self.__lock.release()
 

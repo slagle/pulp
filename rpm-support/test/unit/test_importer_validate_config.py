@@ -24,7 +24,9 @@ import importer_mocks
 from pulp.plugins.model import Repository
 from pulp_rpm.repo_auth.repo_cert_utils import M2CRYPTO_HAS_CRL_SUPPORT
 
-class TestValidateConfig(unittest.TestCase):
+import rpm_support_base
+
+class TestValidateConfig(rpm_support_base.PulpRPMTests):
 
     def setUp(self):
         super(TestValidateConfig, self).setUp()
@@ -229,11 +231,11 @@ class TestValidateConfig(unittest.TestCase):
     def test_config_skip(self):
         feed_url = "http://example.redhat.com/"
         skip_content_types = ""
-        config = importer_mocks.get_basic_config(feed_url=feed_url, skip_content_types=skip_content_types)
+        config = importer_mocks.get_basic_config(feed_url=feed_url, skip=skip_content_types)
         state, msg = self.importer.validate_config(self.repo, config, [])
         self.assertFalse(state)
 
         skip_content_types = []
-        config = importer_mocks.get_basic_config(feed_url=feed_url, skip_content_types=skip_content_types)
+        config = importer_mocks.get_basic_config(feed_url=feed_url, skip=skip_content_types)
         state, msg = self.importer.validate_config(self.repo, config, [])
         self.assertTrue(state)

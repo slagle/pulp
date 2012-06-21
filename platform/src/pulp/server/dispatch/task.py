@@ -13,10 +13,10 @@
 
 import copy
 import datetime
-import inspect
 import logging
 import sys
 import time
+import threading
 import types
 import uuid
 from gettext import gettext as _
@@ -65,6 +65,7 @@ class Task(object):
         self.queued_call_id = None
 
         self.call_report = call_report or call.CallReport()
+        self.call_report.call_request_id = self.call_request.id
         self.call_report.state = dispatch_constants.CALL_WAITING_STATE
         self.call_report.task_id = self.id
         self.call_report.tags.extend(self.call_request.tags)
@@ -90,13 +91,38 @@ class Task(object):
 
     # task lifecycle -----------------------------------------------------------
 
+    def skip(self, reasons=None):
+        """
+        Mark the task as skipped. Called *instead* of run.
+        """
+        assert self.call_report.state in dispatch_constants.CALL_READY_STATES
+        if reasons is not None:
+            self.call_report.reasons = reasons
+        self._complete(dispatch_constants.CALL_SKIPPED_STATE)
+
     def run(self):
         """
-        Run the call request.
+        Public wrapper to kick off the call in the call_request in a new thread.
         """
         connection.authenticate()
         assert self.call_report.state in dispatch_constants.CALL_READY_STATES
+        # NOTE using run wrapper so that state transition is protected by the
+        # task queue lock and doesn't occur in another thread
         self.call_report.state = dispatch_constants.CALL_RUNNING_STATE
+        task_thread = threading.Thread(target=self._run)
+        task_thread.start()
+        # I'm fairly certain these will always be called *before* the context
+        # switch to the task_thread
+        self.call_life_cycle_callbacks(dispatch_constants.CALL_RUN_LIFE_CYCLE_CALLBACK)
+
+    def _run(self):
+        """
+        Run the call in the call request.
+        Generally the target of a new thread.
+        """
+        # used for calling _run directly during testing
+        if self.call_report.state in dispatch_constants.CALL_READY_STATES:
+            self.call_report.state = dispatch_constants.CALL_RUNNING_STATE
         self.call_report.start_time = datetime.datetime.now(dateutils.utc_tz())
         dispatch_context.CONTEXT.set_task_attributes(self)
         call = self.call_request.call
@@ -146,6 +172,11 @@ class Task(object):
         """
         assert state in dispatch_constants.CALL_COMPLETE_STATES
         self.call_report.finish_time = datetime.datetime.now(dateutils.utc_tz())
+        # FIXME we'll need to pass the state along with the task into the
+        # complete callback for conditional blocking tasks (conditional on the
+        # complete state), however this causes a race condition between when the
+        # task is marked as complete (by setting its state) and when it's done
+        # with that task queue
         self._call_complete_callback()
         # don't set the state to complete until the task is actually complete
         self.call_report.state = state
@@ -166,7 +197,7 @@ class Task(object):
         except Exception, e:
             _LOG.exception(e)
 
-    # hook execution -----------------------------------------------------------
+    # callback and hook execution ----------------------------------------------
 
     def call_life_cycle_callbacks(self, key):
         """
@@ -182,17 +213,29 @@ class Task(object):
         Call the cancel control hook if available, otherwise raises a
         MissingCancelControlHook exception.
         """
+        # XXX this method assumes that it is being called under the protection
+        # of the task queue lock. If that is not the case, a race condition
+        # occurs on the state of the task.
+
+        # a complete task cannot be cancelled
         if self.call_report.state in dispatch_constants.CALL_COMPLETE_STATES:
             return
+        # to cancel a running task, the cancel control hook *must* be called
+        if self.call_report.state is dispatch_constants.CALL_RUNNING_STATE:
+            self._call_cancel_control_hook()
+        # nothing special needs to happen to cancel a task in a ready state
+        self.call_life_cycle_callbacks(dispatch_constants.CALL_CANCEL_LIFE_CYCLE_CALLBACK)
+        self._complete(dispatch_constants.CALL_CANCELED_STATE)
+
+    def _call_cancel_control_hook(self):
         cancel_hook = self.call_request.control_hooks[dispatch_constants.CALL_CANCEL_CONTROL_HOOK]
         if cancel_hook is None:
             field = dispatch_constants.call_control_hook_to_string(dispatch_constants.CALL_CANCEL_CONTROL_HOOK)
             raise dispatch_exceptions.MissingCancelControlHook(field)
         # it is expected that this hook can and even will throw an exception
-        # DO NOT handle any exceptions here!!
+        # if this occurs, the task DID NOT CANCEL and should not proceed as if
+        # it has
         cancel_hook(self.call_request, self.call_report)
-        self.call_life_cycle_callbacks(dispatch_constants.CALL_CANCEL_LIFE_CYCLE_CALLBACK)
-        self._complete(dispatch_constants.CALL_CANCELED_STATE)
 
 # asynchronous task ------------------------------------------------------------
 
@@ -206,13 +249,15 @@ class AsyncTask(Task):
     to complete.
     """
 
-    def run(self):
+    def _run(self):
         """
-        Run the call request
+        Run the call in the call request.
+        Generally the target of a new thread.
         """
         connection.authenticate()
-        assert self.call_report.state in dispatch_constants.CALL_READY_STATES
-        self.call_report.state = dispatch_constants.CALL_RUNNING_STATE
+        # used for calling _run directly during testing
+        if self.call_report.state in dispatch_constants.CALL_READY_STATES:
+            self.call_report.state = dispatch_constants.CALL_RUNNING_STATE
         self.call_report.start_time = datetime.datetime.now(dateutils.utc_tz())
         dispatch_context.CONTEXT.set_task_attributes(self)
         call = self.call_request.call

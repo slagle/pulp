@@ -16,7 +16,8 @@ from urlparse import urlparse
 
 from pulp.common.util import encode_unicode
 from pulp.client.extensions.extensions import PulpCliCommand, PulpCliOption, PulpCliFlag, PulpCliOptionGroup
-from pulp.client.arg_utils import InvalidConfig, convert_boolean_arguments, convert_file_contents, convert_removed_options, arg_to_bool
+from pulp.client.arg_utils import (InvalidConfig, convert_boolean_arguments,
+    convert_file_contents, convert_removed_options, arg_to_bool, args_to_notes_dict)
 
 # -- constants ----------------------------------------------------------------
 
@@ -44,7 +45,7 @@ IMPORTER_CONFIG_KEYS = [
     ('max_speed', 'max_speed'),
     ('num_threads', 'num_threads'),
     ('newest', 'only_newest'),
-    ('skip', 'skip_content_types'),
+    ('skip', 'skip_types'),
 
     # Not part of the CLI yet; may be removed entirely
     ('remove_old', 'remove_old'),
@@ -62,10 +63,10 @@ DISTRIBUTOR_CONFIG_KEYS = [
     ('auth_cert', 'auth_cert'),
     ('https_ca', 'host_ca'),
     ('generate_metadata', 'regenerate_metadata'),
-    ('metadata_types', 'skip_content_types'),
+    ('skip', 'skip_types'),
 ]
 
-VALID_SKIP_TYPES = ['packages', 'distributions', 'errata']
+VALID_SKIP_TYPES = ['rpm', 'drpm', 'distribution', 'errata']
 
 LOG = None # set by context
 
@@ -120,7 +121,9 @@ class YumRepoCreateCommand(PulpCliCommand):
                 return
 
         try:
-            notes = args_to_notes_dict(kwargs, include_none=False)
+            notes = None
+            if 'note' in kwargs and kwargs['note'] is not None:
+                notes = args_to_notes_dict(kwargs['note'], include_none=False)
             importer_config = args_to_importer_config(kwargs)
             distributor_config = args_to_distributor_config(kwargs)
         except InvalidConfig, e:
@@ -208,7 +211,10 @@ class YumRepoUpdateCommand(PulpCliCommand):
                 return
 
         try:
-            notes = args_to_notes_dict(kwargs, include_none=True)
+            notes = None
+            if 'note' in kwargs and kwargs['note'] is not None:
+                notes = args_to_notes_dict(kwargs['note'], include_none=True)
+
             importer_config = args_to_importer_config(kwargs)
         except InvalidConfig, e:
             self.context.prompt.render_failure_message(e[0])
@@ -335,10 +341,18 @@ def add_repo_options(command, is_update):
     basic_group.add_option(PulpCliOption('--feed', 'URL of the external source repository to sync', required=False))
     basic_group.add_option(PulpCliOption('--display-name', 'user-readable display name for the repository', required=False))
     basic_group.add_option(PulpCliOption('--description', 'user-readable description of the repo\'s contents', required=False))
-    d =  'adds/updates/deletes key-value pairs to programmtically identify the repository; '
+
+    d =  'adds/updates/deletes key-value pairs to programmatically identify the repository; '
     d += 'pairs must be separated by an equal sign (e.g. key=value); multiple notes can '
-    d += 'be changed by specifying this option multiple times; notes are deleted by '
+    d += 'be %(i)s by specifying this option multiple times; notes are deleted by '
     d += 'specifying "" as the value'
+    d = _(d)
+
+    if is_update:
+        d = d % {'i' : _('changed')}
+    else:
+        d = d % {'i' : _('added')}
+
     basic_group.add_option(PulpCliOption('--note', d, required=False, allow_multiple=True))
     d =  'if "true", on each successful sync the repository will automatically be ' \
     'published on the configured protocols; if "false" synchronized content will ' \
@@ -380,43 +394,6 @@ def add_repo_options(command, is_update):
     repo_auth_group.add_option(PulpCliOption('--auth-ca', 'full path to the CA certificate that should be used to verify client authentication certificates; setting this turns on client authentication for the repository', required=False))
     repo_auth_group.add_option(PulpCliOption('--auth-cert', 'full path to the entitlement certificate that will be given to bound consumers to grant access to this repository', required=False))
 
-def args_to_notes_dict(kwargs, include_none=True):
-    """
-    Extracts notes information from the user-specified options and packages
-    them up to be sent in either repo create or update.
-
-    @param include_none: if true, keys with a value of none will be included
-           in the returned dict; otherwise, only keys with non-none values will
-           be present
-    @type  include_none: bool
-
-    @return: dict if one or more notes were specified; None otherwise
-
-    @raises InvalidConfig: if one or more of the notes is malformed
-    """
-    if 'note' not in kwargs or kwargs['note'] is None:
-        return None
-
-    result = {}
-    for unparsed_note in kwargs['note']:
-        pieces = unparsed_note.split('=', 1)
-
-        if len(pieces) < 2:
-            raise InvalidConfig(_('Notes must be specified in the format key=value'))
-
-        key = pieces[0]
-        value = pieces[1]
-
-        if value in (None, '', '""'):
-            value = None
-
-        if value is None and not include_none:
-            continue
-
-        result[key] = value
-
-    return result
-
 def args_to_importer_config(kwargs):
     """
     Takes the arguments read from the CLI and converts the client-side input
@@ -443,7 +420,6 @@ def args_to_importer_config(kwargs):
 
     LOG.debug('Importer configuration options')
     LOG.debug(importer_config)
-
     return importer_config
 
 def args_to_distributor_config(kwargs):
@@ -465,9 +441,9 @@ def args_to_distributor_config(kwargs):
     convert_file_contents(file_arguments, distributor_config)
 
     # Handle skip types
-    if 'metadata_types' in distributor_config:
-        skip_as_list = _convert_skip_types(distributor_config['metadata_types'])
-        distributor_config['metadata_types'] = skip_as_list
+    if 'skip' in distributor_config:
+        skip_as_list = _convert_skip_types(distributor_config['skip'])
+        distributor_config['skip'] = skip_as_list
 
     # There is an explicit flag for enabling/disabling repository protection.
     # This may be useful to expose to the user to quickly turn on/off repo

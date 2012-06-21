@@ -29,7 +29,9 @@ from yum_importer.importer import YUM_IMPORTER_TYPE_ID
 from pulp.plugins.model import Repository, Unit
 from yum_importer.importer_rpm import RPM_TYPE_ID
 
-class TestErrata(unittest.TestCase):
+import rpm_support_base
+
+class TestErrata(rpm_support_base.PulpRPMTests):
 
     def setUp(self):
         super(TestErrata, self).setUp()
@@ -139,7 +141,7 @@ class TestErrata(unittest.TestCase):
 
         existing_units = []
         for unit in [unit_key_a, unit_key_b]:
-            existing_units.append(Unit(importer_rpm.ImporterRPM, unit, metadata, ''))
+            existing_units.append(Unit(RPM_TYPE_ID, unit, metadata, ''))
         sync_conduit = importer_mocks.get_sync_conduit(type_id=RPM_TYPE_ID, existing_units=existing_units, pkg_dir=self.pkg_dir)
         importerErrata = errata.ImporterErrata()
         status, summary, details = importerErrata.sync(repo, sync_conduit, config)

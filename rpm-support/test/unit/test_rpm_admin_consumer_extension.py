@@ -22,7 +22,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)) + '/../../extensions/admin')
 
-import base
+import rpm_support_base
 
 from rpm_admin_consumer import pulp_cli
 from pulp.client.extensions.core import TAG_SUCCESS
@@ -30,7 +30,7 @@ from pulp.client.extensions.core import TAG_SUCCESS
 
 TASK = {
     'task_id':'TASK123',
-    'job_id':None,
+    'task_group_id':None,
     'tags':{},
     'state':'finished',
     'start_time':None,
@@ -62,7 +62,7 @@ class Task:
 
 
 class Request:
-    
+
     def __init__(self, action):
         self.action = action
 
@@ -76,8 +76,8 @@ class Request:
         raise Exception('Unexpected URL: %s', url)
 
 
-class TestPackages(base.PulpClientTests):
-    
+class TestPackages(rpm_support_base.PulpClientTests):
+
     CONSUMER_ID = 'test-consumer'
 
     def test_install(self):
@@ -90,7 +90,7 @@ class TestPackages(base.PulpClientTests):
             'name':['zsh'],
             'no-commit':False,
             'import-keys':False,
-            'reboot':False, 
+            'reboot':False,
         }
         command.run(**args)
 
@@ -124,7 +124,7 @@ class TestPackages(base.PulpClientTests):
         tags = self.prompt.get_write_tags()
         self.assertEqual(5, len(tags))
         self.assertEqual(tags[0], TAG_SUCCESS)
-        
+
     def test_uninstall(self):
         # Setup
         command = pulp_cli.UninstallContent(self.context)
@@ -135,7 +135,7 @@ class TestPackages(base.PulpClientTests):
             'name':['zsh'],
             'no-commit':False,
             'importkeys':False,
-            'reboot':False, 
+            'reboot':False,
         }
         command.run(**args)
 

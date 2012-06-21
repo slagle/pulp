@@ -32,8 +32,9 @@ from pulp.plugins.model import RelatedRepository, Repository, Unit
 from pulp.plugins.config import PluginCallConfiguration
 
 import distributor_mocks
+import rpm_support_base
 
-class TestDistributor(unittest.TestCase):
+class TestDistributor(rpm_support_base.PulpRPMTests):
 
     def setUp(self):
         super(TestDistributor, self).setUp()
@@ -108,7 +109,7 @@ class TestDistributor(unittest.TestCase):
         optional_kwargs['protected'] = True
         optional_kwargs['generate_metadata'] = True
         optional_kwargs['checksum_type'] = "sha"
-        optional_kwargs['skip_content_types'] = []
+        optional_kwargs['skip'] = []
         optional_kwargs['auth_cert'] = open(os.path.join(self.data_dir, "cert.crt")).read()
         config = distributor_mocks.get_basic_config(**optional_kwargs)
         state, msg = distributor.validate_config(repo, config, [])

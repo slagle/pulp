@@ -37,7 +37,6 @@ DIRS = (
     '/etc/pulp/distributor',
     '/etc/pulp/importer',
     '/etc/pulp/agent',
-    '/etc/pulp/agent/handler',
     '/etc/pulp/agent/conf.d',
     '/etc/gofer',
     '/etc/gofer/plugins',
@@ -64,11 +63,11 @@ DIRS = (
     '/var/lib/pulp_client/admin/extensions',
     '/var/lib/pulp_client/consumer',
     '/var/lib/pulp_client/consumer/extensions',
-    '/var/lib/pulp/plugins',
-    '/var/lib/pulp/plugins/distributors',
-    '/var/lib/pulp/plugins/importers',
-    '/var/lib/pulp/plugins/profilers',
-    '/var/lib/pulp/plugins/types',
+    '/usr/lib/pulp/plugins',
+    '/usr/lib/pulp/plugins/distributors',
+    '/usr/lib/pulp/plugins/importers',
+    '/usr/lib/pulp/plugins/profilers',
+    '/usr/lib/pulp/plugins/types',
     '/var/lib/pulp/published',
     '/var/lib/pulp/published/http',
     '/var/lib/pulp/published/https',
@@ -86,6 +85,7 @@ DIRS = (
 # Standard directories
 DIR_ADMIN_EXTENSIONS = '/usr/lib/pulp/admin/extensions/'
 DIR_CONSUMER_EXTENSIONS = '/usr/lib/pulp/consumer/extensions/'
+DIR_PLUGINS = '/usr/lib/pulp/plugins'
 
 LINKS = (
     ('builtins/extensions/admin/pulp_admin_auth', DIR_ADMIN_EXTENSIONS + 'pulp_admin_auth'),
@@ -103,8 +103,6 @@ LINKS = (
     ('platform/etc/bash_completion.d/pulp-admin', '/etc/bash_completion.d/pulp-admin'),
     ('platform/etc/httpd/conf.d/pulp.conf', '/etc/httpd/conf.d/pulp.conf'),
     ('platform/etc/gofer/plugins/pulp.conf', '/etc/gofer/plugins/pulp.conf'),
-    ('platform/etc/gofer/plugins/pulpplugin.conf', '/etc/gofer/plugins/pulpplugin.conf'),
-    ('platform/etc/gofer/plugins/consumer.conf', '/etc/gofer/plugins/consumer.conf'),
     ('platform/etc/pki/pulp/ca.key', '/etc/pki/pulp/ca.key'),
     ('platform/etc/pki/pulp/ca.crt', '/etc/pki/pulp/ca.crt'),
     ('platform/etc/pulp/server.conf', '/etc/pulp/server.conf'),
@@ -118,9 +116,9 @@ LINKS = (
 
     ('rpm-support/etc/httpd/conf.d/pulp_rpm.conf', '/etc/httpd/conf.d/pulp_rpm.conf'),
     ('rpm-support/etc/pulp/repo_auth.conf', '/etc/pulp/repo_auth.conf'),
-    ('rpm-support/etc/pulp/agent/handler/rpm.conf', '/etc/pulp/agent/handler/rpm.conf'),
-    ('rpm-support/etc/pulp/agent/handler/bind.conf', '/etc/pulp/agent/handler/bind.conf'),
-    ('rpm-support/etc/pulp/agent/handler/linux.conf', '/etc/pulp/agent/handler/linux.conf'),
+    ('rpm-support/etc/pulp/agent/conf.d/rpm.conf', '/etc/pulp/agent/conf.d/rpm.conf'),
+    ('rpm-support/etc/pulp/agent/conf.d/bind.conf', '/etc/pulp/agent/conf.d/bind.conf'),
+    ('rpm-support/etc/pulp/agent/conf.d/linux.conf', '/etc/pulp/agent/conf.d/linux.conf'),
     ('rpm-support/etc/yum/pluginconf.d/pulp-profile-update.conf', '/etc/yum/pluginconf.d/pulp-profile-update.conf'),
 
     ('rpm-support/extensions/admin/rpm_admin_consumer', DIR_ADMIN_EXTENSIONS + 'rpm_admin_consumer'),
@@ -136,9 +134,9 @@ LINKS = (
     ('rpm-support/handlers/bind.py', '/usr/lib/pulp/agent/handlers/bind.py'),
     ('rpm-support/handlers/linux.py', '/usr/lib/pulp/agent/handlers/linux.py'),
 
-    ('rpm-support/plugins/types/rpm_support.json', '/var/lib/pulp/plugins/types/rpm_support.json'),
-    ('rpm-support/plugins/importers/yum_importer', '/var/lib/pulp/plugins/importers/yum_importer'),
-    ('rpm-support/plugins/distributors/yum_distributor', '/var/lib/pulp/plugins/distributors/yum_distributor'),
+    ('rpm-support/plugins/types/rpm_support.json', DIR_PLUGINS + '/types/rpm_support.json'),
+    ('rpm-support/plugins/importers/yum_importer', DIR_PLUGINS + '/importers/yum_importer'),
+    ('rpm-support/plugins/distributors/yum_distributor', DIR_PLUGINS + '/distributors/yum_distributor'),
 
     ('rpm-support/src/pulp/client/consumer/yumplugin/pulp-profile-update.py', '/usr/lib/yum-plugins/pulp-profile-update.py'),
     ('rpm-support/srv/pulp/repo_auth.wsgi', '/srv/pulp/repo_auth.wsgi'),
