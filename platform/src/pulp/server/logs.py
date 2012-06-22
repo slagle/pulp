@@ -15,6 +15,7 @@ import logging
 import logging.config
 import os
 import ConfigParser
+import StringIO
 
 from pulp.server import config
 
