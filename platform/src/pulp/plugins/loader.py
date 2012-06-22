@@ -46,7 +46,7 @@ _LOADER = None
 
 # plugin locations
 
-pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
+pulp_top_dir = os.environ.get("OPENSHIFT_DATA_DIR", "/")
 
 _PLUGINS_ROOT = os.path.join(data_dir, 'usr/lib/pulp/plugins')
 _DISTRIBUTORS_DIR = _PLUGINS_ROOT + '/distributors'

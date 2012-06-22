@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 ADMIN_PREFIX = 'admin:'
 ADMIN_SPLITTER = ':'
 
-pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
+pulp_top_dir = os.environ.get("OPENSHIFT_DATA_DIR", "/")
 serial_path = os.path.join(pulp_top_dir, 'var/lib/pulp/sn.dat')
 
 class SerialNumber:

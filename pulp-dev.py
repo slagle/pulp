@@ -18,7 +18,7 @@ import pwd
 import shutil
 import sys
 
-pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
+pulp_top_dir = os.environ.get("OPENSHIFT_DATA_DIR", "/")
 pulp_log_dir = os.path.join(pulp_top_dir, "var/log/pulp")
 pulp_lib_dir = os.path.join(pulp_top_dir, "var/lib/pulp")
 pulp_pki_dir = os.path.join(pulp_top_dir, "etc/pki/pulp")
