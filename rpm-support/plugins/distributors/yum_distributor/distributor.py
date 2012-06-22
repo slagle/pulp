@@ -45,9 +45,9 @@ OPTIONAL_CONFIG_KEYS = ["protected", "auth_cert", "auth_ca",
                         "checksum_type", "skip", "https_publish_dir", "http_publish_dir"]
 
 SUPPORTED_UNIT_TYPES = [RPM_TYPE_ID, SRPM_TYPE_ID, DRPM_TYPE_ID, DISTRO_TYPE_ID]
-HTTP_PUBLISH_DIR = os.path.join(data_dir, "var/lib/pulp/published/http/repos")
-HTTPS_PUBLISH_DIR = os.path.join(data_dir, "var/lib/pulp/published/https/repos")
-CONFIG_REPO_AUTH = os.path.join(data_dir, "etc/pulp/repo_auth.conf")
+HTTP_PUBLISH_DIR = os.path.join(pulp_top_dir, "var/lib/pulp/published/http/repos")
+HTTPS_PUBLISH_DIR = os.path.join(pulp_top_dir, "var/lib/pulp/published/https/repos")
+CONFIG_REPO_AUTH = os.path.join(pulp_top_dir, "etc/pulp/repo_auth.conf")
 ###
 # Config Options Explained
 ###
