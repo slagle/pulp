@@ -120,6 +120,7 @@ class Task(object):
         Run the call in the call request.
         Generally the target of a new thread.
         """
+        connection.authenticate()
         # used for calling _run directly during testing
         if self.call_report.state in dispatch_constants.CALL_READY_STATES:
             self.call_report.state = dispatch_constants.CALL_RUNNING_STATE
