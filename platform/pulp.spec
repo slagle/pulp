@@ -17,7 +17,7 @@
 # ---- Pulp Platform -----------------------------------------------------------
 
 Name: pulp
-Version: 0.0.305
+Version: 0.0.307
 Release: 1%{?dist}
 Summary: An application for managing software content
 Group: Development/Languages
@@ -181,6 +181,10 @@ Pulp provides replication, access, and accounting for software repositories.
 %dir %{_var}/log/%{name}
 /srv/%{name}/webservices.wsgi
 %{_var}/lib/%{name}/
+%{_usr}/lib/pulp/plugins/distributors
+%{_usr}/lib/pulp/plugins/importers
+%{_usr}/lib/pulp/plugins/profilers
+%{_usr}/lib/pulp/plugins/types
 %doc
 
 
@@ -327,6 +331,25 @@ on a defined interval.
 
 
 %changelog
+* Fri Jun 22 2012 Jay Dobies <jason.dobies@redhat.com> 0.0.307-1
+- The server needs to explicitly create the plugins/* dirs
+  (jason.dobies@redhat.com)
+
+* Fri Jun 22 2012 Jay Dobies <jason.dobies@redhat.com> 0.0.306-1
+- Fixed incorrect instance check when parsing criteria
+  (jason.dobies@redhat.com)
+- 827210 - fixed consumer call request tags to be generated using
+  pulp.common.tags methods (skarmark@redhat.com)
+- changed cancel to return bool or None (jason.connor@gmail.com)
+- added comment about task state/taskqueue race condition
+  (jason.connor@gmail.com)
+- renamed ignored state to skipped (jason.connor@gmail.com)
+- Revert "renamed ignored state to skipped" (jason.connor@gmail.com)
+- renamed ignored state to skipped (jason.connor@gmail.com)
+- Fixing consumer authorization problem because of no associated users with the
+  consumers (like in v1) and minor fixed to consumer config parsing
+  (skarmark@redhat.com)
+
 * Thu Jun 21 2012 Jay Dobies <jason.dobies@redhat.com> 0.0.305-1
 - Updated the code to match where the RPM wants the plugins
   (jason.dobies@redhat.com)
