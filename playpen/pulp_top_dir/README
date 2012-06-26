@@ -15,6 +15,9 @@ Steps:
    export PULP_TOP_DIR=/tmp/pulp
    ###########################################################################
 
+   NOTE: make sure you have $PULP_TOP_DIR defined anytime you use any of the
+   commands in the steps below.
+
 2. Run pulp-dev.py as usual, but we need to specify an additional option of -A,
    which tells the script what user we intend to use to start apache.  We'll
    use jslagle, since I'm the one writhing this.
