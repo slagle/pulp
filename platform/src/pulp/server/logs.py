@@ -60,6 +60,9 @@ def configure_pulp_logging():
     log_config_filename = config.config.get('logs', 'config')
     if not os.access(log_config_filename, os.R_OK):
         raise RuntimeError("Unable to read log configuration file: %s" % (log_config_filename))
+
+    # Apparently no way to override a log file path from the config file, so we
+    # need this hack to adjust the path.
     cp = ConfigParser.ConfigParser()
     cp.read(log_config_filename)
     cp.set("handler_pulp_file", "args",
@@ -69,6 +72,7 @@ def configure_pulp_logging():
     sio = StringIO.StringIO()
     cp.write(sio)
     sio.seek(0)
+
     logging.config.fileConfig(sio)
     _enable_all_loggers() # Hack needed for RHEL-5
 
