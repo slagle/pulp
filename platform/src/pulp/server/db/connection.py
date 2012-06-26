@@ -57,24 +57,6 @@ def initialize(name=None, seeds=None):
         _database = None
         raise
 
-def disconnect():
-
-    global _connection, _database
-    _connection.disconnect()
-
-    _connection = _database = None
-
-def reconnect():
-
-    disconnect()
-    initialize()
-
-def authenticate():
-
-    global _connection, _database
-    _database.authenticate(os.environ["OPENSHIFT_NOSQL_DB_USERNAME"],
-        os.environ["OPENSHIFT_NOSQL_DB_PASSWORD"])
-
 # collection wrapper class -----------------------------------------------------
 
 class PulpCollectionFailure(PulpException):

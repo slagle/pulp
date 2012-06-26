@@ -104,7 +104,6 @@ class Task(object):
         """
         Public wrapper to kick off the call in the call_request in a new thread.
         """
-        connection.authenticate()
         assert self.call_report.state in dispatch_constants.CALL_READY_STATES
         # NOTE using run wrapper so that state transition is protected by the
         # task queue lock and doesn't occur in another thread
@@ -120,7 +119,6 @@ class Task(object):
         Run the call in the call request.
         Generally the target of a new thread.
         """
-        connection.authenticate()
         # used for calling _run directly during testing
         if self.call_report.state in dispatch_constants.CALL_READY_STATES:
             self.call_report.state = dispatch_constants.CALL_RUNNING_STATE
@@ -273,7 +271,6 @@ class AsyncTask(Task):
         Run the call in the call request.
         Generally the target of a new thread.
         """
-        connection.authenticate()
         # used for calling _run directly during testing
         if self.call_report.state in dispatch_constants.CALL_READY_STATES:
             self.call_report.state = dispatch_constants.CALL_RUNNING_STATE

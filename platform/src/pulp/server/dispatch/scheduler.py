@@ -63,7 +63,6 @@ class Scheduler(object):
         """
         Dispatcher thread loop
         """
-        connection.authenticate()
         self.__lock.acquire()
         while True:
             self.__condition.wait(timeout=self.dispatch_interval)

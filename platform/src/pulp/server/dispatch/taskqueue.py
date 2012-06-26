@@ -68,7 +68,6 @@ class TaskQueue(object):
         """
         Dispatcher thread loop
         """
-        connection.authenticate()
         self.__lock.acquire()
         while True:
             try:
