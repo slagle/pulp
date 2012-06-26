@@ -93,5 +93,11 @@ Steps:
    The apache logs are (of course) relative to your $PULP_TOP_DIR at
    $PULP_TOP_DIR/var/log/httpd.
 
-8. Enjoy hacking Pulp :).
+8. If you want you can install the sources for grinder and gofer into
+   $PULP_TOP_DIR as well, using the same pattern as was used for installing the
+   sources for Pulp.  This will allow you setup an environment with any
+   combination of Pulp/Grinder/Gofer versions.  Otherwise, the grinder and
+   gofer installed on your system will be used.  
+
+9. Enjoy hacking Pulp :).
 
