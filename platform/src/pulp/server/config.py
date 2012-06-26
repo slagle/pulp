@@ -18,7 +18,7 @@ from ConfigParser import SafeConfigParser
 
 config = None # ConfigParser.SafeConfigParser instance
 
-pulp_top_dir = os.environ.get("OPENSHIFT_DATA_DIR", "/")
+pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
 
 # to guarantee that a section and/or setting exists, add a default value here
 _default_values = {

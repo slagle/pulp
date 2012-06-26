@@ -13,7 +13,7 @@
 #
 
 import os
-data_dir = os.environ["OPENSHIFT_DATA_DIR"]
+data_dir = os.environ["PULP_TOP_DIR"]
 
 LOCAL_STORAGE = os.path.join(data_dir, "var/lib/pulp/")
 

@@ -20,7 +20,7 @@ import StringIO
 from pulp.server import config
 
 
-pulp_top_dir = os.environ.get("OPENSHIFT_DATA_DIR", "/")
+pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
 pulp_log_file = os.path.join(pulp_top_dir, "var/log/pulp/pulp.log")
 grinder_log_file = os.path.join(pulp_top_dir, "var/log/pulp/grinder.log")
 

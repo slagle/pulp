@@ -31,7 +31,7 @@ from yum_distributor import metadata
 _LOG = logging.getLogger(__name__)
 _ = gettext.gettext
 
-pulp_top_dir = os.environ.get("OPENSHIFT_DATA_DIR", "/")
+pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
 
 YUM_DISTRIBUTOR_TYPE_ID="yum_distributor"
 RPM_TYPE_ID="rpm"

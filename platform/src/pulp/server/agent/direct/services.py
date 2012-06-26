@@ -31,7 +31,7 @@ from logging import getLogger
 log = getLogger(__name__)
 
 
-data_dir = os.environ["OPENSHIFT_DATA_DIR"]
+data_dir = os.environ["PULP_TOP_DIR"]
 watchdog_journal_path = os.path.join(data_dir, 'var/lib/pulp/journal/watchdog')
 
 class Services:

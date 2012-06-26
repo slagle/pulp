@@ -32,7 +32,7 @@ from pulp.server.db.version import (
     VERSION, get_version_in_use, set_version, is_validated, set_validated, 
     revert_to_version, clean_db)
 
-data_dir = os.environ["OPENSHIFT_DATA_DIR"]
+data_dir = os.environ["PULP_TOP_DIR"]
 default_log_file = os.path.join(data_dir, 'var/log/pulp/db.log')
 
 def parse_args():
