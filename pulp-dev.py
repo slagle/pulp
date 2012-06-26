@@ -177,6 +177,11 @@ REPLACE_PATHS = (
     "/srv/pulp/repo_auth.wsgi",
     "/etc/httpd",
     "/usr/lib/pulp/admin/extensions",
+    "/etc/pulp/logging/basic.cfg",
+    "/var/log/pulp/pulp.log",
+    "/var/log/pulp/grinder.log",
+    "/etc/pki/pulp/ca.key",
+    "/etc/pki/pulp/ssl_ca.crt",
     )
 
 PORT_FILES = (
