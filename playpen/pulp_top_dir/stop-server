@@ -1,0 +1,5 @@
+#!/bin/bash
+
+PID=`cat $PULP_TOP_DIR/var/run/httpd/httpd.pid`
+
+/usr/bin/kill $PID
