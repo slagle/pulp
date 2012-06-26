@@ -18,7 +18,9 @@ import pwd
 import shutil
 import sys
 
-pulp_top_dir = os.environ.get("OPENSHIFT_DATA_DIR", "/")
+pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
+devel = pulp_top_dir == "/"
+    
 pulp_log_dir = os.path.join(pulp_top_dir, "var/log/pulp")
 pulp_lib_dir = os.path.join(pulp_top_dir, "var/lib/pulp")
 pulp_pki_dir = os.path.join(pulp_top_dir, "etc/pki/pulp")
@@ -74,6 +76,7 @@ DIRS = (
     '/var/lib/pulp/uploads',
     '/var/log/pulp',
     '/var/www/.python-eggs', # needed for older versions of mod_wsgi
+    '/var/run',
 )
 
 #
@@ -141,6 +144,46 @@ LINKS = (
     ('rpm-support/src/pulp/client/consumer/yumplugin/pulp-profile-update.py', '/usr/lib/yum-plugins/pulp-profile-update.py'),
     ('rpm-support/srv/pulp/repo_auth.wsgi', '/srv/pulp/repo_auth.wsgi'),
     )
+
+DEVEL_DIRS = (
+    "/var/run/httpd",
+    "/var/log/httpd",
+    )
+
+DEVEL_FILES = (
+    ('/etc/httpd/conf', 'etc/httpd/conf'),
+    ('/etc/httpd/conf/httpd.conf', 'etc/httpd/conf/httpd.conf'),
+    ('/etc/httpd/conf.d', 'etc/httpd/conf.d'),
+    ('platform/etc/pulp/admin/admin.conf', 'etc/pulp/admin/admin.conf'),
+    ('platform/etc/httpd/conf.d/pulp.conf', 'etc/httpd/conf.d/pulp.conf'),
+    ('rpm-support/etc/httpd/conf.d/pulp_rpm.conf', 'etc/httpd/conf.d/pulp_rpm.conf'),
+    ('platform/srv/pulp/webservices.wsgi', 'srv/pulp/webservices.wsgi'),
+    )
+
+DEVEL_LINKS = (
+    ('var/log/httpd', 'etc/httpd/logs'),
+    ('var/run/httpd', 'etc/httpd/run'),
+    ('/usr/lib64/httpd/modules', 'etc/httpd/modules'),
+    )
+
+REPLACE_PATHS = (
+    "/srv/pulp/webservices.wsgi",
+    "/etc/pki/pulp/ca.crt",
+    "/var/www/pub/http/repos",
+    "/var/www/pub/https/repos",
+    "/var/www/pub/gpg",
+    "/var/www/pub/ks",
+    "/srv/pulp/repo_auth.wsgi",
+    "/etc/httpd",
+    "/usr/lib/pulp/admin/extensions",
+    )
+
+PORT_FILES = (
+    "/etc/httpd/conf/httpd.conf",
+    "/etc/httpd/conf.d/pulp_rpm.conf",
+    "/etc/httpd/conf.d/ssl.conf",
+    )
+
 
 def parse_cmdline():
     """
@@ -246,8 +289,79 @@ def install(opts):
     # Update for certs
     os.system('chown -R %s:%s %s' % (uid, gid, pulp_pki_dir))
 
+    if devel:
+        devel(opts)
+
     return os.EX_OK
 
+def devel(opts):
+
+    os.system("virtualenv --system-site-packages %s" % pulp_top_dir)
+
+    for dir in DEVEL_DIRS:
+        new_dir_path = os.path.join(pulp_top_dir, dir[1:])
+        if os.path.exists(new_dir_path):
+            shutil.rmtree(new_dir_path)
+        os.mkdir(new_dir_path)
+
+    for src, dst in DEVEL_FILES:
+        dst = os.path.join(pulp_top_dir, dst)
+        if os.path.exists(dst):
+            if os.path.isdir(dst):
+                shutil.rmtree(dst)
+            else:
+                os.unlink(dst)
+        if os.path.isdir(src):
+            shutil.copytree(src, dst)
+        else:
+            shutil.copyfile(src, dst)
+
+        for path in REPLACE_PATHS:
+            new_path = os.path.join(pulp_top_dir, path[1:])
+            print "replacing %s with %s in %s" \
+                % (path, new_path, dst)
+            os.system("sed -i 's#%s#%s#g' %s" % 
+                (path, new_path, dst))
+
+    for src, dst in DEVEL_LINKS:
+        dst = os.path.join(pulp_top_dir, dst)
+        if os.path.exists(dst):
+            os.unlink(dst)
+        if not src.startswith('/'):
+            src = os.path.join(pulp_top_dir, src)
+        if os.path.exists(dst):
+            os.unlink(dst)
+        print "creating link: %s" % dst
+        os.symlink(src, dst)
+
+    for port_file in PORT_FILES:
+        port_file_path = os.path.join(pulp_top_dir, port_file[1:])
+        os.system("sed -i 's#80#8080#g' %s" % port_file_path)
+        os.system("sed -i 's#443#8443#g' %s" % port_file_path)
+
+    virtualenv_setup = """activate_this = '%s/bin/activate_this.py'
+execfile(activate_this, dict(__file__=activate_this))
+""" % pulp_top_dir
+
+    wsgi_path = os.path.join(pulp_top_dir, "srv/pulp/webservices.wsgi")
+    f = open(wsgi_path)
+    old_lines = f.read().split('\n')
+    f.close()
+    f = open(wsgi_path, 'w')
+    comments = 0
+    for old_line in old_lines:
+        if old_line.startswith('#'):
+            f.write('%s\n' % old_line)
+            comments += 1
+        else:
+            break
+
+    f.write(virtualenv_setup)
+
+    for old_line in old_lines[comments:]:
+        f.write('%s\n' % old_line)
+
+    f.close()
 
 def uninstall(opts):
     for src, dst in getlinks():
