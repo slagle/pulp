@@ -13,6 +13,9 @@ except IOError:
 # line, it's possible required libraries won't be in your searchable path
 # 
 
+# Set $PULP_TOP_DIR equal to $OPENSHIFT_DATA_DIR
+os.environ["PULP_TOP_DIR"] = os.environ["OPENSHIFT_DATA_DIR"]
+
 from pulp.server.webservices.application import wsgi_application
 
 application = wsgi_application()
