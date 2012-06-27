@@ -221,8 +221,7 @@ class TaskQueue(object):
         self.__lock.acquire()
         try:
             valid_blocking_tasks = set()
-            for potential_blocking_task in tuple(itertools.chain(
-                    self.__running_tasks, self.__waiting_tasks)):
+            for potential_blocking_task in itertools.chain(self.__running_tasks, self.__waiting_tasks):
                 if potential_blocking_task.id not in task.blocking_tasks:
                     continue
                 valid_blocking_tasks.add(potential_blocking_task.id)
@@ -304,9 +303,9 @@ class TaskQueue(object):
         """
         self.__lock.acquire()
         try:
-            for task in tuple(itertools.chain(self.__completed_tasks,
+            for task in itertools.chain(self.__completed_tasks,
                                         self.__running_tasks,
-                                        self.__waiting_tasks)):
+                                        self.__waiting_tasks):
                 if task.id != task_id:
                     continue
                 return task
@@ -325,9 +324,9 @@ class TaskQueue(object):
         self.__lock.acquire()
         try:
             tasks = []
-            for task in tuple(itertools.chain(self.__completed_tasks,
+            for task in itertools.chain(self.__completed_tasks,
                                         self.__running_tasks,
-                                        self.__waiting_tasks)):
+                                        self.__waiting_tasks):
                 for tag in tags:
                     if tag not in task.call_request.tags:
                         break
@@ -369,6 +368,6 @@ class TaskQueue(object):
         """
         self.__lock.acquire()
         try:
-            return tuple(itertools.chain(self.__running_tasks[:], self.__waiting_tasks[:]))
+            return itertools.chain(self.__running_tasks[:], self.__waiting_tasks[:])
         finally:
             self.__lock.release()
