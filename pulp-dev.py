@@ -314,12 +314,15 @@ def install(opts):
 
 def openshift(opts):
 
-    for dst in DEVEL_OPENSHIFT_FILES:
+    for src, dst in DEVEL_OPENSHIFT_FILES:
 
         new_dst = os.path.join(pulp_top_dir, dst)
-        os.unlink(new_dst)
+        is os.path.exists(new_dst):
+            os.unlink(new_dst)
+        shutil.copyfile(src, new_dst)
 
         for path in REPLACE_PATHS:
+            new_path = os.path.join(pulp_top_dir, path[1:])
             print "replacing %s with %s in %s" \
                 % (path, new_path, dst)
             os.system("sed -i 's#%s#%s#g' %s" % 
