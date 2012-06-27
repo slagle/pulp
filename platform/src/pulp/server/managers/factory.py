@@ -31,6 +31,7 @@ TYPE_CONSUMER               = 'consumer-manager'
 TYPE_CONSUMER_AGENT         = 'consumer-agent-manager'
 TYPE_CONSUMER_BIND          = 'consumer-bind-manager'
 TYPE_CONSUMER_HISTORY       = 'consumer-history-manager'
+TYPE_CONSUMER_PROFILE       = 'consumer-profile-manager'
 TYPE_CONSUMER_QUERY         = 'consumer-query-manager'
 TYPE_CONTENT                = 'content-manager'
 TYPE_CONTENT_ORPHAN         = 'content-orphan-manager'
@@ -107,6 +108,12 @@ def consumer_history_manager():
     @rtype: L{pulp.server.managers.consumer.history.ConsumerHistoryManager}
     """
     return get_manager(TYPE_CONSUMER_HISTORY)
+
+def consumer_profile_manager():
+    """
+    @rtype: L{pulp.server.managers.consumer.profile.ConsumerProfileManager}
+    """
+    return get_manager(TYPE_CONSUMER_PROFILE)
 
 def content_manager():
     """
@@ -210,6 +217,7 @@ def initialize():
     from pulp.server.managers.consumer.agent import AgentManager
     from pulp.server.managers.consumer.bind import BindManager
     from pulp.server.managers.consumer.history import ConsumerHistoryManager
+    from pulp.server.managers.consumer.profile import ProfileManager
     from pulp.server.managers.consumer.query import ConsumerQueryManager
     from pulp.server.managers.content.cud import ContentManager
     from pulp.server.managers.content.orphan import OrphanManager
@@ -234,6 +242,7 @@ def initialize():
         TYPE_CONSUMER_AGENT: AgentManager,
         TYPE_CONSUMER_BIND: BindManager,
         TYPE_CONSUMER_HISTORY: ConsumerHistoryManager,
+        TYPE_CONSUMER_PROFILE: ProfileManager,
         TYPE_CONSUMER_QUERY: ConsumerQueryManager,
         TYPE_CONTENT: ContentManager,
         TYPE_CONTENT_ORPHAN: OrphanManager,
