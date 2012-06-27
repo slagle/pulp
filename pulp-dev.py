@@ -317,7 +317,7 @@ def openshift(opts):
     for src, dst in DEVEL_OPENSHIFT_FILES:
 
         new_dst = os.path.join(pulp_top_dir, dst)
-        is os.path.exists(new_dst):
+        if os.path.exists(new_dst):
             os.unlink(new_dst)
         shutil.copyfile(src, new_dst)
 
