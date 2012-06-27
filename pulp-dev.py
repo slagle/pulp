@@ -155,6 +155,7 @@ DEVEL_FILES = (
     ('/etc/httpd/conf/httpd.conf', 'etc/httpd/conf/httpd.conf'),
     ('/etc/httpd/conf.d', 'etc/httpd/conf.d'),
     ('platform/etc/pulp/admin/admin.conf', 'etc/pulp/admin/admin.conf'),
+    ('platform/etc/pulp/server.conf', 'etc/pulp/server.conf'),
     ('platform/etc/httpd/conf.d/pulp.conf', 'etc/httpd/conf.d/pulp.conf'),
     ('rpm-support/etc/httpd/conf.d/pulp_rpm.conf', 'etc/httpd/conf.d/pulp_rpm.conf'),
     ('platform/srv/pulp/webservices.wsgi', 'srv/pulp/webservices.wsgi'),
@@ -176,6 +177,11 @@ REPLACE_PATHS = (
     "/srv/pulp/repo_auth.wsgi",
     "/etc/httpd",
     "/usr/lib/pulp/admin/extensions",
+    "/etc/pulp/logging/basic.cfg",
+    "/var/log/pulp/pulp.log",
+    "/var/log/pulp/grinder.log",
+    "/etc/pki/pulp/ca.key",
+    "/etc/pki/pulp/ssl_ca.crt",
     )
 
 PORT_FILES = (
