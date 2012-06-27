@@ -57,18 +57,6 @@ def initialize(name=None, seeds=None):
         _database = None
         raise
 
-def disconnect():
-
-    global _connection, _database
-    _connection.disconnect()
-
-    _connection = _database = None
-
-def reconnect():
-
-    disconnect()
-    initialize()
-
 def authenticate():
 
     global _connection, _database

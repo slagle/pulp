@@ -34,10 +34,7 @@ _default_values = {
     'database': {
         'auto_migrate': 'false',
         'name': 'pulp_database',
-        'seeds': 'mongodb://%s:%s@%s:%s' % (os.environ["OPENSHIFT_NOSQL_DB_USERNAME"],
-                                  os.environ["OPENSHIFT_NOSQL_DB_PASSWORD"],
-                                  os.environ["OPENSHIFT_NOSQL_DB_HOST"],
-                                  os.environ["OPENSHIFT_NOSQL_DB_PORT"]),
+        'seeds': 'localhost:27017',
         'operation_retries': '2',
     },
     'events': {
@@ -123,8 +120,16 @@ def load_configuration():
         for option, value in settings.items():
             config.set(section, option, value)
     # read the config files
-    return config.read(_config_files)
+    config.read(_config_files)
+    edit_db_seeds()
 
+def edit_db_seeds():
+    global config
+    config.set('database', 'seeds',
+        'mongodb://%s:%s@%s:%s' % (os.environ["OPENSHIFT_NOSQL_DB_USERNAME"],
+                                   os.environ["OPENSHIFT_NOSQL_DB_PASSWORD"],
+                                   os.environ["OPENSHIFT_NOSQL_DB_HOST"],
+                                   os.environ["OPENSHIFT_NOSQL_DB_PORT"]))
 
 def add_config_file(file_path):
     """
