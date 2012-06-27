@@ -18,6 +18,9 @@ import pwd
 import shutil
 import sys
 
+# Set $PULP_TOP_DIR equal to $OPENSHIFT_DATA_DIR
+os.environ["PULP_TOP_DIR"] = os.environ["OPENSHIFT_DATA_DIR"]
+
 pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
 devel = pulp_top_dir == "/"
     
