@@ -161,7 +161,7 @@ class CallRequest(object):
 
     copied_fields = ('resources', 'weight', 'tags', 'asynchronous', 'archive')
     pickled_fields = ('call', 'args', 'kwargs', 'execution_hooks', 'control_hooks')
-    all_fields = tuple(itertools.chain(copied_fields, pickled_fields))
+    all_fields = itertools.chain(copied_fields, pickled_fields)
 
     def serialize(self):
         """
