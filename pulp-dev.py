@@ -19,7 +19,7 @@ import shutil
 import sys
 
 pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
-devel = pulp_top_dir == "/"
+_devel = pulp_top_dir == "/"
     
 pulp_log_dir = os.path.join(pulp_top_dir, "var/log/pulp")
 pulp_lib_dir = os.path.join(pulp_top_dir, "var/lib/pulp")
@@ -295,7 +295,7 @@ def install(opts):
     # Update for certs
     os.system('chown -R %s:%s %s' % (uid, gid, pulp_pki_dir))
 
-    if devel:
+    if _devel:
         devel(opts)
 
     return os.EX_OK
