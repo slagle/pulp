@@ -182,7 +182,23 @@ def ssl_client_cert():
     @rtype: str or None
     @return: pem encoded cert
     """
-    return web.ctx.environ.get('SSL_CLIENT_CERT', None)
+    cert = web.ctx.environ.get('SSL_CLIENT_CERT', None)
+
+    # Try reading header set by OpenShift which will contain the value of the
+    # forwarded client cert.
+    if not cert:
+        cert = web.ctx.environ.get('HTTP_X_FORWARDED_SSL_CLIENT_CERT', None)
+        if cert:
+            # The header value is all on one line, so we need to reformat it.
+            header = '-----BEGIN CERTIFICATE-----'
+            footer = '-----END CERTIFICATE-----'
+            cert = cert[len(header):]
+            cert = cert[:-len(footer)]
+            cert = '\n'.join(cert.split(' '))
+            cert = "%s%s%s" % (header, cert, footer)
+
+    return cert
+
 
 # uri path functions ----------------------------------------------------------
 
