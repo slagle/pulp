@@ -22,7 +22,10 @@ import sys
 os.environ["PULP_TOP_DIR"] = os.environ["OPENSHIFT_DATA_DIR"]
 
 pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
-devel = pulp_top_dir == "/"
+_devel = pulp_top_dir == "/"
+
+_devel = False
+_openshift = True
     
 pulp_log_dir = os.path.join(pulp_top_dir, "var/log/pulp")
 pulp_lib_dir = os.path.join(pulp_top_dir, "var/lib/pulp")
@@ -164,6 +167,10 @@ DEVEL_FILES = (
     ('platform/srv/pulp/webservices.wsgi', 'srv/pulp/webservices.wsgi'),
     )
 
+DEVEL_OPENSHIFT_FILES = (
+    ('platform/etc/pulp/server.conf', 'etc/pulp/server.conf'),
+    )
+
 DEVEL_LINKS = (
     ('var/log/httpd', 'etc/httpd/logs'),
     ('var/run/httpd', 'etc/httpd/run'),
@@ -298,12 +305,31 @@ def install(opts):
     # Update for certs
     os.system('chown -R %s:%s %s' % (uid, gid, pulp_pki_dir))
 
-    if devel:
+    if _devel:
         devel(opts)
+    if _openshift:
+        openshift(opts)
 
     return os.EX_OK
 
+def openshift(opts):
+
+    for dst in DEVEL_OPENSHIFT_FILES:
+
+        new_dst = os.path.join(pulp_top_dir, dst)
+        os.unlink(new_dst)
+
+        for path in REPLACE_PATHS:
+            print "replacing %s with %s in %s" \
+                % (path, new_path, dst)
+            os.system("sed -i 's#%s#%s#g' %s" % 
+                (path, new_path, new_dst))
+
+        return
+
+
 def devel(opts):
+
 
     os.system("virtualenv --system-site-packages %s" % pulp_top_dir)
 
