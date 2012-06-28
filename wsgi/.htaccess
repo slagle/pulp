@@ -1,0 +1,4 @@
+# Redirect pulp/repos to our static directory
+RewriteEngine On
+RewriteRule ^application/pulp/repos/(.+)$ /static/repos/$1 [L]
+

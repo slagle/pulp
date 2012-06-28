@@ -30,6 +30,9 @@ use pulp_database
 db.addUser("admin", "${OPENSHIFT_NOSQL_DB_PASSWORD}")
 EOQ
 
+# Symlink repos to the static directory
+ln -s $OPENSHIFT_DATA_DIR/var/www/pub/https/repos $OPENSHIFT_REPO_DIR/wsgi/static/repos
+
 # Restart app
 $OPENSHIFT_GEAR_DIR/pulpshift_ctl.sh restart
 
