@@ -328,6 +328,9 @@ def openshift(opts):
             os.system("sed -i 's#%s#%s#g' %s" % 
                 (path, new_path, new_dst))
 
+        os.system("%s/openshift-setup.sh" % \
+            os.environ.get("OPENSHIFT_REPO_DIR"))
+
         return
 
 
