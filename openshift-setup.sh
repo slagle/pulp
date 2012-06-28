@@ -31,6 +31,7 @@ db.addUser("admin", "${OPENSHIFT_NOSQL_DB_PASSWORD}")
 EOQ
 
 # Restart app
-ctl_app restart
+$OPENSHIFT_GEAR_DIR/pulpshift_ctl.sh restart
+
 
 

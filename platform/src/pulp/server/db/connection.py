@@ -129,6 +129,7 @@ def get_collection(name, create=False):
     Factory function to instantiate PulpConnection objects using configurable
     parameters.
     """
+    authenticate()
     global _database
     if _database is None:
         raise PulpCollectionFailure(_('Cannot get collection from uninitialized database'))
