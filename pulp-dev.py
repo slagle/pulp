@@ -314,12 +314,15 @@ def install(opts):
 
 def openshift(opts):
 
+    currdir = os.path.abspath(os.path.dirname(__file__))
+
     for src, dst in DEVEL_OPENSHIFT_FILES:
 
+        abs_src = os.path.join(currdir, src)
         new_dst = os.path.join(pulp_top_dir, dst)
         if os.path.exists(new_dst):
             os.unlink(new_dst)
-        shutil.copyfile(src, new_dst)
+        shutil.copyfile(abs_src, new_dst)
 
         for path in REPLACE_PATHS:
             new_path = os.path.join(pulp_top_dir, path[1:])
