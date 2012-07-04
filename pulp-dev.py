@@ -169,6 +169,7 @@ DEVEL_FILES = (
 
 DEVEL_OPENSHIFT_FILES = (
     ('platform/etc/pulp/server.conf', 'etc/pulp/server.conf'),
+     'platform/etc/pulp/admin/admin.conf', 'etc/pulp/admin/admin.conf'),
     )
 
 DEVEL_LINKS = (
@@ -192,6 +193,7 @@ REPLACE_PATHS = (
     "/var/log/pulp/grinder.log",
     "/etc/pki/pulp/ca.key",
     "/etc/pki/pulp/ssl_ca.crt",
+    "/~",
     )
 
 PORT_FILES = (
@@ -331,10 +333,16 @@ def openshift(opts):
             os.system("sed -i 's#%s#%s#g' %s" % 
                 (path, new_path, new_dst))
 
-        os.system("%s/openshift-setup.sh" % \
-            os.environ.get("OPENSHIFT_REPO_DIR"))
+    # One final admin.conf fixup
+    dns = os.environ["OPENSHIFT_APP_DNS"]
+    admin_path = os.path.join(pulp_top_dir, "etc/pulp/admin/admin.conf")
+    os.system("sed -i 's#localhost.localdomain#%s#' %s'" %
+        (dns, admin_path)
 
-        return
+    os.system("%s/openshift-setup.sh" % \
+        os.environ.get("OPENSHIFT_REPO_DIR"))
+
+    return
 
 
 def devel(opts):

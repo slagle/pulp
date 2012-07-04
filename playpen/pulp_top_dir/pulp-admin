@@ -1,4 +1,5 @@
 #!/bin/bash
 
-$PULP_TOP_DIR/bin/python $PULP_TOP_DIR/usr/bin/pulp-admin \
-    --config $PULP_TOP_DIR/etc/pulp/admin/admin.conf $@
+$OPENSHIFT_GEAR_DIR/virtenv/bin/python $OPENSHIFT_DATA_DIR/usr/bin/pulp-admin \
+    --config $OPENSHIFT_DATA_DIR/etc/pulp/admin/admin.conf $@
+
