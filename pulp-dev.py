@@ -338,7 +338,7 @@ def openshift(opts):
     os.system("sed -i 's#%s#%s#g' %s" %
         ("~", pulp_top_dir, admin_path))
     os.system("sed -i 's#%s#%s#g' %s" %
-        ("~", "localhost.localdomain", dns))
+        ("localhost.localdomain", dns, admin_path))
 
 
     os.system("%s/openshift-setup.sh" % \
