@@ -337,6 +337,9 @@ def openshift(opts):
     admin_path = os.path.join(pulp_top_dir, "etc/pulp/admin/admin.conf")
     os.system("sed -i 's#%s#%s#g' %s" %
         ("~", pulp_top_dir, admin_path))
+    os.system("sed -i 's#%s#%s#g' %s" %
+        ("~", "localhost.localdomain", dns))
+
 
     os.system("%s/openshift-setup.sh" % \
         os.environ.get("OPENSHIFT_REPO_DIR"))
