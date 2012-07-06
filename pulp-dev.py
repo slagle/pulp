@@ -19,7 +19,7 @@ import shutil
 import sys
 
 pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
-_devel = pulp_top_dir == "/"
+_devel = pulp_top_dir != "/"
     
 pulp_log_dir = os.path.join(pulp_top_dir, "var/log/pulp")
 pulp_lib_dir = os.path.join(pulp_top_dir, "var/lib/pulp")
