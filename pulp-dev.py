@@ -190,6 +190,7 @@ PORT_FILES = (
     "/etc/httpd/conf/httpd.conf",
     "/etc/httpd/conf.d/pulp_rpm.conf",
     "/etc/httpd/conf.d/ssl.conf",
+    "/etc/pulp/admin/admin.conf",
     )
 
 
