@@ -156,6 +156,7 @@ DEVEL_FILES = (
     ('/etc/httpd/conf', 'etc/httpd/conf'),
     ('/etc/httpd/conf/httpd.conf', 'etc/httpd/conf/httpd.conf'),
     ('/etc/httpd/conf.d', 'etc/httpd/conf.d'),
+    ('/usr/lib64/httpd/modules', 'etc/httpd/modules'),
     ('platform/etc/pulp/admin/admin.conf', 'etc/pulp/admin/admin.conf'),
     ('platform/etc/pulp/server.conf', 'etc/pulp/server.conf'),
     ('platform/etc/httpd/conf.d/pulp.conf', 'etc/httpd/conf.d/pulp.conf'),
@@ -164,9 +165,10 @@ DEVEL_FILES = (
     )
 
 DEVEL_LINKS = (
-    ('var/log/httpd', 'etc/httpd/logs'),
-    ('var/run/httpd', 'etc/httpd/run'),
-    ('/usr/lib64/httpd/modules', 'etc/httpd/modules'),
+    ('/var/log/httpd', 'etc/httpd/logs'),
+    ('/var/run/httpd', 'etc/httpd/run'),
+    ('platform/src/pulp', 'lib/python2.7/site-packages/pulp'),
+    ('rpm-support/src/pulp_rpm', 'lib/python2.7/site-packages/pulp_rpm'),
     )
 
 REPLACE_PATHS = (
@@ -336,8 +338,11 @@ def devel(opts):
         dst = os.path.join(pulp_top_dir, dst)
         if os.path.exists(dst):
             os.unlink(dst)
-        if not src.startswith('/'):
-            src = os.path.join(pulp_top_dir, src)
+        if src.startswith('/'):
+            src = os.path.join(pulp_top_dir, src[1:])
+        else:
+            currdir = os.path.abspath(os.path.dirname(__file__))
+            src = os.path.join(currdir, src)
         if os.path.exists(dst):
             os.unlink(dst)
         print "creating link: %s" % dst
