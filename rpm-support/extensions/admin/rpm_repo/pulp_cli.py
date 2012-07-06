@@ -250,17 +250,22 @@ class YumRepoListCommand(PulpCliCommand):
         self.add_option(PulpCliFlag('--details', 'if specified, extra information on the repository will be displayed'))
 
     def list(self, **kwargs):
+        """
+        @param details: if True, include importer and distributor info
+        """
         self.prompt.render_title('Repositories')
 
         show_details = kwargs['details']
-
-        repo_list = self.context.server.repo.repositories().response_body
+        query_params = {}
 
         # Summary mode is default
         filters = ['id', 'display_name', 'description', 'content_unit_count', 'notes']
 
         if show_details:
             filters += ['auto_publish', 'sync_config', 'publish_config']
+            query_params['details'] = True
+
+        repo_list = self.context.server.repo.repositories(query_params).response_body
 
         # Process each repository to clean up/restructure various data
         for r in repo_list:
@@ -288,7 +293,7 @@ class YumRepoListCommand(PulpCliCommand):
                             r['sync_config'][key] = _('Yes')
 
                     # We don't want to display the proxy password in plain text, so
-                    # if it's present swap it out with astericks
+                    # if it's present swap it out with asterisks
                     if 'proxy_pass' in r['sync_config']:
                         r['sync_config']['proxy_pass'] = '*' * len(r['sync_config']['proxy_pass'])
 
@@ -360,10 +365,12 @@ def add_repo_options(command, is_update):
     basic_group.add_option(PulpCliOption('--auto-publish', _(d), required=False))
 
     # Synchronization Options
-    sync_group.add_option(PulpCliOption('--only-newest', 'if "true", only the newest version of a given package is downloaded', required=False))
+    sync_group.add_option(PulpCliOption('--only-newest', 'if "true", only the newest version of a given package is downloaded; defaults to false', required=False))
     sync_group.add_option(PulpCliOption('--skip-types', 'comma-separated list of types to omit when synchronizing, if not specified all types will be synchronized; valid values are: %s' % ', '.join(VALID_SKIP_TYPES), required=False))
     sync_group.add_option(PulpCliOption('--verify-size', 'if "true", the size of each synchronized file will be verified against the repo metadata; defaults to false', required=False))
     sync_group.add_option(PulpCliOption('--verify-checksum', 'if "true", the checksum of each synchronized file will be verified against the repo metadata; defaults to false', required=False))
+    sync_group.add_option(PulpCliOption('--remove-old', 'if "true", removes old packages from the repo; defaults to false', required=False))
+    sync_group.add_option(PulpCliOption('--retain-old-count', 'count indicating how many old rpm versions to retain; defaults to 0; this count only takes effect when remove-old option is set to true.', required=False))
 
     # Proxy Options
     proxy_group.add_option(PulpCliOption('--proxy-url', 'URL to the proxy server to use', required=False))
@@ -377,7 +384,7 @@ def add_repo_options(command, is_update):
 
     # SSL Options
     ssl_group.add_option(PulpCliOption('--feed-ca-cert', 'full path to the CA certificate that should be used to verify the external repo server\'s SSL certificate', required=False))
-    ssl_group.add_option(PulpCliOption('--verify-feed-ssl', 'if "true", the feed\'s SSL certificate will be verified against the feed_ca_cert', required=False))
+    ssl_group.add_option(PulpCliOption('--verify-feed-ssl', 'if "true", the feed\'s SSL certificate will be verified against the feed_ca_cert; defaults to false', required=False))
     ssl_group.add_option(PulpCliOption('--feed-cert', 'full path to the certificate to use for authentication when accessing the external feed', required=False))
     ssl_group.add_option(PulpCliOption('--feed-key', 'full path to the private key for feed_cert', required=False))
 
@@ -387,7 +394,7 @@ def add_repo_options(command, is_update):
     publish_group.add_option(PulpCliOption('--serve-https', 'if "true", the repository will be served over HTTPS; defaults to true', required=False))
     publish_group.add_option(PulpCliOption('--checksum-type', 'type of checksum to use during metadata generation', required=False))
     publish_group.add_option(PulpCliOption('--gpg-key', 'GPG key used to sign and verify packages in the repository', required=False))
-    publish_group.add_option(PulpCliOption('--regenerate-metadata', 'if "true", when the repository is published the repo metadata will be regenerated instead of reusing the metadata downloaded from the feed', required=False))
+    publish_group.add_option(PulpCliOption('--regenerate-metadata', 'if "true", when the repository is published the repo metadata will be regenerated instead of reusing the metadata downloaded from the feed; defaults to false', required=False))
 
     # Publish Security Options
     repo_auth_group.add_option(PulpCliOption('--host-ca', 'full path to the CA certificate that signed the repository hosts\'s SSL certificate when serving over HTTPS', required=False))
@@ -406,7 +413,7 @@ def args_to_importer_config(kwargs):
     importer_config = _prep_config(kwargs, IMPORTER_CONFIG_KEYS)
 
     # Parsing of true/false
-    boolean_arguments = ('ssl_verify', 'verify_size', 'verify_checksum', 'newest')
+    boolean_arguments = ('ssl_verify', 'verify_size', 'verify_checksum', 'newest', 'remove_old')
     convert_boolean_arguments(boolean_arguments, importer_config)
 
     # Read in the contents of any files that were specified
@@ -418,6 +425,11 @@ def args_to_importer_config(kwargs):
         skip_as_list = _convert_skip_types(importer_config['skip'])
         importer_config['skip'] = skip_as_list
 
+    if 'num_old_packages' in importer_config:
+        if importer_config['num_old_packages'] is None:
+            importer_config['num_old_packages'] = 0
+        else:
+            importer_config['num_old_packages'] = int(importer_config['num_old_packages'])
     LOG.debug('Importer configuration options')
     LOG.debug(importer_config)
     return importer_config

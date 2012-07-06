@@ -11,8 +11,9 @@ and :term:`distributors <distributor>` associated with it.
 | :method:`get`
 | :path:`/v2/repositories/<repo_id>/`
 | :permission:`read`
-| :param_list:`get` None; the repository ID is included in the URL itself. There are
-  no supported query parameters.
+| :param_list:`get` include the key "details" with any value that evaluates to
+  True to have importers and distributors included in the results. alternatively
+  use the keys "importers" or "distributors" to get one or the other.
 | :response_list:`_`
 
 * :response_code:`200,if the repository exists`
@@ -67,15 +68,78 @@ and :term:`distributors <distributor>` associated with it.
 Retrieve all Repositories
 -------------------------
 
-Returns information on all repositories in the Pulp server. Eventually this call
-will support query parameters to limit the results and provide searching capabilities.
-It is worth noting that this call will never return a 404; an empty list is returned
-in the case where there are no repositories.
+Returns information on all repositories in the Pulp server. It is worth noting
+that this call will never return a 404; an empty list is returned in the case
+where there are no repositories.
 
 | :method:`get`
 | :path:`/v2/repositories/`
 | :permission:`read`
-| :param_list:`get` Currently none, all repositories are returned.
+| :param_list:`get` include the key "details" with any value that evaluates to
+  True to have importers and distributors included in the results.
+| :response_list:`_`
+
+* :response_code:`200,containing the list of repositories`
+
+| :return:`the same format as retrieving a single repository, except the base of the return value is a list of them`
+
+:sample_response:`200` ::
+
+ [
+  {
+    "display_name": "Harness Repository: harness_repo_1",
+    "description": null,
+    "distributors": [
+      {
+        "scratchpad": 1,
+        "_ns": "gc_repo_distributors",
+        "last_publish": "2012-01-25T15:26:32-05:00",
+        "auto_publish": false,
+        "distributor_type_id": "harness_distributor",
+        "repo_id": "harness_repo_1",
+        "publish_in_progress": false,
+        "_id": "addf9261-345e-4ce3-ad1e-436ba005287f",
+        "config": {
+          "publish_dir": "/tmp/harness-publish",
+          "write_files": "true"
+        },
+        "id": "dist_1"
+      }
+    ],
+    "notes": {},
+    "content_unit_count": 0,
+    "importers": [
+      {
+        "scratchpad": 1,
+        "_ns": "gc_repo_importers",
+        "importer_type_id": "harness_importer",
+        "last_sync": "2012-01-25T15:26:32-05:00",
+        "repo_id": "harness_repo_1",
+        "sync_in_progress": false,
+        "_id": "bbe81308-ef7c-4c0c-b684-385fd627d99e",
+        "config": {
+          "num_units": "5",
+          "write_files": "true"
+        },
+        "id": "harness_importer"
+      }
+    ],
+    "id": "harness_repo_1"
+  }
+ ]
+
+Retrieve Repositories By Search
+-------------------------
+
+Returns information on repositories in the Pulp server that match your search
+parameters. It is worth noting that this call will never return a 404; an empty
+list is returned in the case where there are no repositories.
+
+| :method:`post`
+| :path:`/v2/repositories/search/`
+| :permission:`read`
+| :param_list:`post` include the key "criteria" whose value is a mapping
+structure as defined in pulp.server.db.model.Criteria
 | :response_list:`_`
 
 * :response_code:`200,containing the list of repositories`

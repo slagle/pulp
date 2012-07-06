@@ -12,6 +12,7 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 
 # Python
+from datetime import timedelta
 import logging
 import sys
 from gettext import gettext as _
@@ -25,10 +26,11 @@ import pulp.server.managers.factory as manager_factory
 from pulp.common.tags import action_tag, resource_tag
 from pulp.server import config as pulp_config
 from pulp.server.auth.authorization import CREATE, READ, DELETE, EXECUTE, UPDATE
+from pulp.server.db.model.criteria import Criteria
+from pulp.server.db.model.repository import Repo
 from pulp.server.dispatch import constants as dispatch_constants
 from pulp.server.dispatch import factory as dispatch_factory
 from pulp.server.dispatch.call import CallRequest
-from pulp.server.managers.repo.unit_association_query import Criteria
 from pulp.server.webservices import execution
 from pulp.server.webservices import serialization
 from pulp.server.webservices.controllers.base import JSONController
@@ -39,36 +41,107 @@ from pulp.server.webservices.serialization.unit_criteria import unit_association
 
 _LOG = logging.getLogger(__name__)
 
-# -- repo controllers ---------------------------------------------------------
+# -- functions ----------------------------------------------------------------
 
+def _merge_related_objects(name, manager, repos):
+    """
+    Takes a list of Repo objects and adds their corresponding related objects
+    in a list under the attribute given in 'name'. Uses the given manager to
+    access the related objects by passing the list of IDs for the given repos.
+    This is most commonly used for RepoImporter or RepoDistributor objects in
+    lists under the 'importers' and 'distributors' attributes.
+
+    @param name: name of the field, such as 'importers' or 'distributors'.
+    @type  name: str
+
+    @param manager: manager class for the object type. must implement a method
+                    'find_by_repo_list' that takes a list of repo ids.
+
+    @param repos: list of Repo instances that should have importers and
+                  distributors added.
+    @type  repos  list of Repo instances
+
+    @return the same list that was passed in, just for convenience. The list
+            itself is not modified- only its members are modified in-place.
+    @rtype  list of Repo instances
+    """
+    repo_ids = tuple(repo['id'] for repo in repos)
+
+    # make it cheap to access each repo by id
+    repo_dict = dict((repo['id'], repo) for repo in repos)
+
+    # guarantee that at least an empty list will be present
+    for repo in repos:
+        repo[name] = []
+
+    for item in manager.find_by_repo_list(repo_ids):
+        repo_dict[item['repo_id']][name].append(item)
+
+    return repos
+
+
+# -- repo controllers ---------------------------------------------------------
 class RepoCollection(JSONController):
 
     # Scope: Collection
     # GET:   Retrieve all repositories in the system
     # POST:  Repository Create
 
+    @staticmethod
+    def _process_repos(repos, importers=False, distributors=False):
+        """
+        Apply standard processing to a collection of repositories being returned
+        to a client.  Adds the object link and optionally adds related importers
+        and distributors.
+
+        @param repos: collection of repositories
+        @type  repos: list, tuple
+
+        @param importers:   iff True, adds related importers under the
+                            attribute "importers".
+        @type  importers:   bool
+
+        @param distributors:    iff True, adds related distributors under the
+                                attribute "distributors".
+        @type  distributors:    bool
+
+        @return the same list that was passed in, just for convenience. The list
+                itself is not modified- only its members are modified in-place.
+        @rtype  list of Repo instances
+        """
+        if importers:
+            _merge_related_objects(
+                'importers', manager_factory.repo_importer_manager(), repos)
+        if distributors:
+            _merge_related_objects(
+                'distributors', manager_factory.repo_distributor_manager(), repos)
+
+        for repo in repos:
+            repo.update(serialization.link.child_link_obj(repo['id']))
+
+        return repos
+
     @auth_required(READ)
     def GET(self):
-        repo_query_manager = manager_factory.repo_query_manager()
-        all_repos = repo_query_manager.find_all()
+        """
+        Looks for query parameters 'importers' and 'distributors', and will add
+        the corresponding fields to the each repository returned. Query
+        parameter 'details' is equivalent to passing both 'importers' and
+        'distributors'.
+        """
+        query_params = web.input()
+        query_manager = manager_factory.repo_query_manager()
+        all_repos = query_manager.find_all()
 
-        # Load the importer/distributor information into each repository
-        importer_manager = manager_factory.repo_importer_manager()
-        distributor_manager = manager_factory.repo_distributor_manager()
-        unit_query_manager = manager_factory.repo_unit_association_query_manager()
+        if query_params.get('details', False):
+            query_params['importers'] = True
+            query_params['distributors'] = True
 
-        for r in all_repos:
-            importers = importer_manager.get_importers(r['id'])
-            r['importers'] = importers
-
-            distributors = distributor_manager.get_distributors(r['id'])
-            r['distributors'] = distributors
-
-            criteria = Criteria(unit_fields=[], association_fields=[], remove_duplicates=True)
-            units = unit_query_manager.get_units_across_types(r['id'], criteria)
-            r['content_unit_count'] = len(units)
-
-            r.update(serialization.link.child_link_obj(r['id']))
+        self._process_repos(
+            all_repos,
+            query_params.get('importers', False),
+            query_params.get('distributors', False)
+        )
 
         # Return the repos or an empty list; either way it's a 200
         return self.ok(all_repos)
@@ -107,6 +180,46 @@ class RepoCollection(JSONController):
         return self.created(id, repo)
 
 
+class RepoAdvancedSearch(JSONController):
+    @auth_required(READ)
+    def POST(self):
+        """
+        Searches based on a Criteria object. Requires a posted parameter
+        'criteria' which has a data structure that can be turned into a
+        Criteria instance.
+
+        @param criteria:    Required. data structure that can be turned into
+                            an instance of the Criteria model.
+        @type  criteria:    dict
+
+        @param importers:   Optional. iff evaluates to True, will include
+                            each repo's related importers on the 'importers'
+                            attribute.
+        @type  imports:     bool
+
+        @param distributors:    Optional. iff evaluates to True, will include
+                                each repo's related distributors on the
+                                'importers' attribute.
+        @type  distributors:    bool
+
+        @return:    list of matching repositories
+        @rtype:     list
+        """
+        try:
+            criteria_param = self.params()['criteria']
+        except KeyError:
+            raise exceptions.MissingValue(['criteria'])
+        criteria = Criteria.from_json_doc(criteria_param)
+        repos = list(Repo.get_collection().query(criteria))
+
+        RepoCollection._process_repos(
+            repos,
+            self.params().get('importers', False),
+            self.params().get('distributors', False)
+        )
+        return self.ok(repos)
+
+
 class RepoResource(JSONController):
 
     # Scope:   Resource
@@ -116,28 +229,28 @@ class RepoResource(JSONController):
 
     @auth_required(READ)
     def GET(self, id):
+        """
+        Looks for query parameters 'importers' and 'distributors', and will add
+        the corresponding fields to the repository returned. Query parameter
+        'details' is equivalent to passing both 'importers' and 'distributors'.
+        """
+        query_params = web.input()
         query_manager = manager_factory.repo_query_manager()
-
         repo = query_manager.find_by_id(id)
 
         if repo is None:
             raise exceptions.MissingResource(id)
 
-        # Load the importer/distributor information into the repository
-        importer_manager = manager_factory.repo_importer_manager()
-        distributor_manager = manager_factory.repo_distributor_manager()
+        repo.update(serialization.link.current_link_obj())
 
-        importers = importer_manager.get_importers(id)
-        repo['importers'] = importers
+        if query_params.get('details', False):
+            query_params['importers'] = True
+            query_params['distributors'] = True
 
-        distributors = distributor_manager.get_distributors(id)
-        repo['distributors'] = distributors
-
-        # Load the unit count into the repo
-        unit_query_manager = manager_factory.repo_unit_association_query_manager()
-        criteria = Criteria(unit_fields=[], association_fields=[], remove_duplicates=True)
-        units = unit_query_manager.get_units_across_types(id, criteria)
-        repo['content_unit_count'] = len(units)
+        if query_params.get('importers', False):
+            repo = _merge_related_objects('importers', manager_factory.repo_importer_manager(), (repo,))[0]
+        if query_params.get('distributors', False):
+            repo = _merge_related_objects('distributors', manager_factory.repo_distributor_manager(), (repo,))[0]
 
         return self.ok(repo)
 
@@ -814,6 +927,41 @@ class RepoImportUpload(JSONController):
 
         return execution.execute_ok(self, call_request)
 
+class RepoResolveDependencies(JSONController):
+
+    # Scope: Actions
+    # POST:  Resolve and return dependencies for one or more units
+
+    def POST(self, repo_id):
+        # Params
+        params = self.params()
+        query = params.get('criteria', {})
+        options = params.get('options', {})
+        timeout = params.get('timeout', 60)
+
+        try:
+            criteria = unit_association_criteria(query)
+        except:
+            _LOG.exception('Error parsing association criteria [%s]' % query)
+            raise exceptions.PulpDataException(), None, sys.exc_info()[2]
+
+        try:
+            timeout = int(timeout)
+        except ValueError:
+            raise exceptions.InvalidValue(['timeout']), None, sys.exc_info()[2]
+
+        # Coordinator configuration
+        resources = {dispatch_constants.RESOURCE_REPOSITORY_TYPE: {repo_id: dispatch_constants.RESOURCE_READ_OPERATION}}
+        tags = [resource_tag(dispatch_constants.RESOURCE_REPOSITORY_TYPE, repo_id),
+                action_tag('resolve_dependencies')]
+
+        dependency_manager = manager_factory.dependency_manager()
+        call_request = CallRequest(dependency_manager.resolve_dependencies_by_criteria,
+                                   [repo_id, criteria, options],
+                                   resources=resources, tags=tags, archive=True)
+
+        return execution.execute_sync_ok(self, call_request, timeout=timedelta(seconds=timeout))
+
 class RepoUnitAdvancedSearch(JSONController):
 
     # Scope: Search
@@ -854,7 +1002,8 @@ class RepoUnitAdvancedSearch(JSONController):
 # These are defined under /v2/repositories/ (see application.py to double-check)
 urls = (
     '/', 'RepoCollection', # collection
-    '/([^/]+)/$', 'RepoResource', # resourcce
+    '/search/$', 'RepoAdvancedSearch', # resource search
+    '/([^/]+)/$', 'RepoResource', # resource
 
     '/([^/]+)/importers/$', 'RepoImporters', # sub-collection
     '/([^/]+)/importers/([^/]+)/$', 'RepoImporter', # exclusive sub-resource
@@ -873,6 +1022,7 @@ urls = (
     '/([^/]+)/actions/publish/$', 'RepoPublish', # resource action
     '/([^/]+)/actions/associate/$', 'RepoAssociate', # resource action
     '/([^/]+)/actions/import_upload/$', 'RepoImportUpload', # resource action
+    '/([^/]+)/actions/resolve_dependencies/$', 'RepoResolveDependencies', # resource action
 
     '/([^/]+)/search/units/$', 'RepoUnitAdvancedSearch', # resource search
 )

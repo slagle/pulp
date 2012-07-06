@@ -37,12 +37,16 @@ TYPE_CONTENT                = 'content-manager'
 TYPE_CONTENT_ORPHAN         = 'content-orphan-manager'
 TYPE_CONTENT_QUERY          = 'content-query-manager'
 TYPE_CONTENT_UPLOAD         = 'content-upload-manager'
+TYPE_DEPENDENCY             = 'dependencies-manager'
+TYPE_EVENT_FIRE             = 'event-fire-manager'
+TYPE_EVENT_LISTENER         = 'event-listener-manager'
 TYPE_PLUGIN_MANAGER         = 'plugin-manager'
 TYPE_REPO                   = 'repo-manager'
-TYPE_REPO_IMPORTER          = 'repo-importer-manager'
-TYPE_REPO_DISTRIBUTOR       = 'repo-distributor-manager'
 TYPE_REPO_ASSOCIATION       = 'repo-association-manager'
 TYPE_REPO_ASSOCIATION_QUERY = 'repo-association-query-manager'
+TYPE_REPO_GROUP             = 'repo-group-manager'
+TYPE_REPO_IMPORTER          = 'repo-importer-manager'
+TYPE_REPO_DISTRIBUTOR       = 'repo-distributor-manager'
 TYPE_REPO_PUBLISH           = 'repo-publish-manager'
 TYPE_REPO_QUERY             = 'repo-query-manager'
 TYPE_REPO_SYNC              = 'repo-sync-manager'
@@ -139,6 +143,24 @@ def content_upload_manager():
     """
     return get_manager(TYPE_CONTENT_UPLOAD)
 
+def dependency_manager():
+    """
+    @rtype: L{pulp.server.managers.repo.dependency.DependencyManager}
+    """
+    return get_manager(TYPE_DEPENDENCY)
+
+def event_fire_manager():
+    """
+    @rtype: L{pulp.server.managers.event.fire.EventFireManager}
+    """
+    return get_manager(TYPE_EVENT_FIRE)
+
+def event_listener_manager():
+    """
+    @rtype: L{pulp.server.managers.event.crud.EventListenerManager}
+    """
+    return get_manager(TYPE_EVENT_LISTENER)
+
 def plugin_manager():
     """
     @rtype: L{pulp.server.managers.plugin.PluginManager}
@@ -171,7 +193,7 @@ def repo_unit_association_manager():
 
 def repo_unit_association_query_manager():
     """
-    @rtype: L{pulp.server.managers.repo.unit_association_qiery.RepoUnitAssociationQueryManager}
+    @rtype: L{pulp.server.managers.repo.unit_association_query.RepoUnitAssociationQueryManager}
     """
     return get_manager(TYPE_REPO_ASSOCIATION_QUERY)
 
@@ -193,6 +215,12 @@ def repo_sync_manager():
     """
     return get_manager(TYPE_REPO_SYNC)
 
+def repo_group_manager():
+    """
+    @rtype: L{pulp.server.managers.repo.group.RepoGroupManager}
+    """
+    return get_manager(TYPE_REPO_GROUP)
+
 def schedule_manager():
     """
     @rtype: L{pulp.server.manager.schedule.cud.ScheduleManager}
@@ -201,7 +229,7 @@ def schedule_manager():
 
 def user_manager():
     """
-    @rtype: L{pulp.server.managers.user.UserManager}
+    @rtype: L{pulp.server.managers.auth.user.UserManager}
     """
     return get_manager(TYPE_USER)
 
@@ -213,6 +241,7 @@ def initialize():
     (read: default) managers.
     """
     # imports for individual managers to prevent circular imports
+    from pulp.server.managers.auth.user import UserManager
     from pulp.server.managers.consumer.cud import ConsumerManager
     from pulp.server.managers.consumer.agent import AgentManager
     from pulp.server.managers.consumer.bind import BindManager
@@ -223,8 +252,11 @@ def initialize():
     from pulp.server.managers.content.orphan import OrphanManager
     from pulp.server.managers.content.query import ContentQueryManager
     from pulp.server.managers.content.upload import ContentUploadManager
+    from pulp.server.managers.event.crud import EventListenerManager
+    from pulp.server.managers.event.fire import EventFireManager
     from pulp.server.managers.plugin import PluginManager
     from pulp.server.managers.repo.cud import RepoManager
+    from pulp.server.managers.repo.dependency import DependencyManager
     from pulp.server.managers.repo.importer import RepoImporterManager
     from pulp.server.managers.repo.distributor import RepoDistributorManager
     from pulp.server.managers.repo.unit_association import RepoUnitAssociationManager
@@ -232,8 +264,8 @@ def initialize():
     from pulp.server.managers.repo.publish import RepoPublishManager
     from pulp.server.managers.repo.query import RepoQueryManager
     from pulp.server.managers.repo.sync import RepoSyncManager
+    from pulp.server.managers.repo.group import RepoGroupManager
     from pulp.server.managers.schedule.cud import ScheduleManager
-    from pulp.server.managers.user import UserManager
 
     # Builtins for a normal running Pulp server (used to reset the state of the
     # factory between runs)
@@ -248,6 +280,9 @@ def initialize():
         TYPE_CONTENT_ORPHAN: OrphanManager,
         TYPE_CONTENT_QUERY: ContentQueryManager,
         TYPE_CONTENT_UPLOAD: ContentUploadManager,
+        TYPE_DEPENDENCY: DependencyManager,
+        TYPE_EVENT_FIRE: EventFireManager,
+        TYPE_EVENT_LISTENER: EventListenerManager,
         TYPE_PLUGIN_MANAGER: PluginManager,
         TYPE_REPO: RepoManager,
         TYPE_REPO_IMPORTER: RepoImporterManager,
@@ -257,8 +292,9 @@ def initialize():
         TYPE_REPO_PUBLISH: RepoPublishManager,
         TYPE_REPO_QUERY: RepoQueryManager,
         TYPE_REPO_SYNC: RepoSyncManager,
+        TYPE_REPO_GROUP: RepoGroupManager,
         TYPE_SCHEDULE: ScheduleManager,
-        TYPE_USER : UserManager,
+        TYPE_USER: UserManager,
     }
     _CLASSES.update(builtins)
 

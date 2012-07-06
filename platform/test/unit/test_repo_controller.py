@@ -28,12 +28,17 @@ import dummy_plugins
 
 from pulp.common import dateutils
 from pulp.plugins import loader as plugin_loader
+from pulp.server.db.connection import PulpCollection
+from pulp.server.db.model import criteria
 from pulp.server.db.model.dispatch import ScheduledCall
 from pulp.server.db.model.repository import (
     Repo, RepoImporter, RepoDistributor, RepoPublishResult, RepoSyncResult)
 from pulp.server.managers import factory as manager_factory
+from pulp.server.managers.repo.distributor import RepoDistributorManager
+from pulp.server.managers.repo.importer import RepoImporterManager
 from pulp.server.managers.repo.unit_association_query import Criteria
 import pulp.server.webservices.serialization.unit_criteria as repo_query_utils
+from pulp.server.webservices.controllers import repositories
 
 class RepoControllersTests(base.PulpWebserviceTests):
 
@@ -44,6 +49,91 @@ class RepoControllersTests(base.PulpWebserviceTests):
     def clean(self):
         super(RepoControllersTests, self).clean()
         Repo.get_collection().remove(safe=True)
+
+class RepoAdvancedSearchTests(RepoControllersTests):
+    @mock.patch.object(repositories.RepoAdvancedSearch, 'params')
+    @mock.patch.object(PulpCollection, 'query')
+    def test_basic_search(self, mock_query, mock_params):
+        mock_params.return_value = {
+            'criteria' : {}
+        }
+        ret = self.post('/v2/repositories/search/')
+        self.assertEqual(ret[0], 200)
+        self.assertEqual(mock_query.call_count, 1)
+        query_arg = mock_query.call_args[0][0]
+        self.assertTrue(isinstance(query_arg, criteria.Criteria))
+        # one call each for criteria, importers, and distributors
+        self.assertEqual(mock_params.call_count, 3)
+
+    @mock.patch.object(repositories.RepoAdvancedSearch, 'params')
+    @mock.patch.object(PulpCollection, 'query')
+    def test_return_value(self, mock_query, mock_params):
+        """
+        make sure the method returns the same stuff that is returned by query()
+        """
+        mock_params.return_value = {
+            'criteria' : {}
+        }
+        mock_query.return_value = [
+            {'id' : 'repo-1'},
+            {'id' : 'repo-2'},
+        ]
+        ret = self.post('/v2/repositories/search/')
+        self.assertEqual(ret[0], 200)
+        self.assertEqual(ret[1], mock_query.return_value)
+
+    @mock.patch('pulp.server.webservices.controllers.repositories.RepoCollection._process_repos')
+    @mock.patch.object(repositories.RepoAdvancedSearch, 'params')
+    @mock.patch.object(PulpCollection, 'query')
+    def test_search_with_importers(self, mock_query, mock_params, mock_process_repos):
+        mock_params.return_value = {
+            'criteria' : {},
+            'importers' : 1,
+            'distributors' : 0
+        }
+        ret = self.post('/v2/repositories/search/')
+        self.assertEqual(ret[0], 200)
+        mock_process_repos.assert_called_once_with([], 1, 0)
+
+    @mock.patch('pulp.server.webservices.controllers.repositories.RepoCollection._process_repos')
+    @mock.patch.object(repositories.RepoAdvancedSearch, 'params')
+    @mock.patch.object(PulpCollection, 'query')
+    def test_search_with_distributors(self, mock_query, mock_params, mock_process_repos):
+        mock_params.return_value = {
+            'criteria' : {},
+            'importers' : 0,
+            'distributors' : 1
+        }
+        ret = self.post('/v2/repositories/search/')
+        self.assertEqual(ret[0], 200)
+        mock_process_repos.assert_called_once_with([], 0, 1)
+
+    @mock.patch('pulp.server.webservices.controllers.repositories.RepoCollection._process_repos')
+    @mock.patch.object(repositories.RepoAdvancedSearch, 'params')
+    @mock.patch.object(PulpCollection, 'query')
+    def test_search_with_both(self, mock_query, mock_params, mock_process_repos):
+        mock_params.return_value = {
+            'criteria' : {},
+            'importers' : 1,
+            'distributors' : 1
+        }
+        ret = self.post('/v2/repositories/search/')
+        self.assertEqual(ret[0], 200)
+        mock_process_repos.assert_called_once_with([], 1, 1)
+
+    @mock.patch.object(repositories.RepoAdvancedSearch, 'params', return_value={})
+    def test_require_criteria(self, mock_params):
+        """
+        make sure this raises a MissingValue exception if 'criteria' is not
+        passed as a parameter.
+        """
+        ret = self.post('/v2/repositories/search/')
+        self.assertEqual(ret[0], 400)
+        value = ret[1]
+        self.assertTrue(isinstance(value, dict))
+        self.assertTrue('missing_property_names' in value)
+        self.assertEqual(value['missing_property_names'], [u'criteria'])
+
 
 class RepoCollectionTests(RepoControllersTests):
 
@@ -62,6 +152,9 @@ class RepoCollectionTests(RepoControllersTests):
         # Verify
         self.assertEqual(200, status)
         self.assertEqual(2, len(body))
+        self.assertTrue('importers' not in body[0])
+        self.assertTrue('_href' in body[0])
+        self.assertTrue(body[0]['_href'].find('repositories/dummy-') >= 0)
 
     def test_get_no_repos(self):
         """
@@ -74,6 +167,83 @@ class RepoCollectionTests(RepoControllersTests):
         # Verify
         self.assertEqual(200, status)
         self.assertEqual(0, len(body))
+
+    def test_merge_related_objects(self):
+        REPOS = [{'id' : 'dummy-1', 'display_name' : 'dummy'}]
+        IMPORTERS = [{'repo_id' : 'dummy-1', 'id' : 'importer-1', 'importer_type_id' : 1}]
+
+        # mock out these managers so we don't hit the DB
+        mock_importer_manager = mock.MagicMock()
+        mock_importer_manager.find_by_repo_list.return_value = IMPORTERS
+        ret = repositories._merge_related_objects('importers', mock_importer_manager, REPOS)
+
+        self.assertTrue('importers' in ret[0])
+        self.assertEqual(len(ret[0]['importers']), 1)
+        self.assertEqual(ret[0]['importers'][0]['id'], IMPORTERS[0]['id'])
+
+    @mock.patch('pulp.server.webservices.serialization.link.child_link_obj')
+    def test_process_repos_calls_serialize(self, mock_child_link_obj):
+        mock_child_link_obj.return_value = {}
+        REPOS = [{'id' : 'dummy-1', 'display_name' : 'dummy'}]
+        repositories.RepoCollection._process_repos(REPOS)
+        mock_child_link_obj.assert_called_once_with(REPOS[0]['id'])
+
+    @mock.patch('pulp.server.webservices.serialization.link.child_link_obj',
+                return_value={})
+    def test_process_repos_without_details(self, mock_child_link_obj):
+        REPOS = [{'id' : 'dummy-1', 'display_name' : 'dummy'}]
+        ret = repositories.RepoCollection._process_repos(REPOS)
+        self.assertTrue('importers' not in ret[0])
+        self.assertTrue('distributors' not in ret[0])
+
+    @mock.patch('pulp.server.webservices.serialization.link.child_link_obj',
+        return_value={})
+    @mock.patch.object(repositories, '_merge_related_objects')
+    def test_process_repos_with_importers(self, mock_merge_related_objects,
+                                          mock_child_link_obj):
+        REPOS = [{'id' : 'dummy-1', 'display_name' : 'dummy'}]
+        repositories.RepoCollection._process_repos(REPOS, importers=True)
+        self.assertEqual(mock_merge_related_objects.call_count, 1)
+        self.assertEqual(mock_merge_related_objects.call_args[0][0], 'importers')
+        self.assertTrue(isinstance(mock_merge_related_objects.call_args[0][1],
+            RepoImporterManager))
+
+    @mock.patch('pulp.server.webservices.serialization.link.child_link_obj',
+        return_value={})
+    @mock.patch.object(repositories, '_merge_related_objects')
+    def test_process_repos_with_distributors(self, mock_merge_related_objects,
+                                          mock_child_link_obj):
+        REPOS = [{'id' : 'dummy-1', 'display_name' : 'dummy'}]
+        repositories.RepoCollection._process_repos(REPOS, distributors=True)
+        self.assertEqual(mock_merge_related_objects.call_count, 1)
+        self.assertEqual(
+            mock_merge_related_objects.call_args[0][0], 'distributors')
+        self.assertTrue(isinstance(mock_merge_related_objects.call_args[0][1],
+            RepoDistributorManager))
+
+    @mock.patch('pulp.server.managers.repo.query.RepoQueryManager.find_all')
+    @mock.patch.object(repositories, '_merge_related_objects')
+    def test_get_details(self, mock_merge_method, mock_find_all):
+        """
+        Make sure the GET method calls _merge_related_objects
+        """
+        mock_merge_method.return_value = [Repo('repo-1', 'Repo 1')]
+        mock_find_all.return_value = [Repo('repo-1', 'Repo 1')]
+        status, body = self.get('/v2/repositories/?details=1')
+        self.assertEqual(200, status)
+        self.assertTrue(mock_merge_method.called)
+
+    @mock.patch('pulp.server.managers.repo.query.RepoQueryManager.find_all')
+    @mock.patch.object(repositories, '_merge_related_objects')
+    def test_get_without_details(
+            self, mock_merge_method, mock_find_all):
+        """
+        Make sure the GET method does not call _merge_related_objects
+        """
+        mock_find_all.return_value = [Repo('repo-1', 'Repo 1')]
+        status, body = self.get('/v2/repositories/')
+        self.assertEqual(200, status)
+        self.assertFalse(mock_merge_method.called)
 
     def test_post(self):
         """
@@ -144,6 +314,58 @@ class RepoResourceTests(RepoControllersTests):
         # Verify
         self.assertEqual(200, status)
         self.assertEqual('repo-1', body['id'])
+        self.assertTrue('_href' in body)
+        self.assertTrue(body['_href'].endswith('repositories/repo-1/'))
+
+    @mock.patch('pulp.server.managers.repo.query.RepoQueryManager.find_by_id')
+    @mock.patch.object(repositories, '_merge_related_objects')
+    def test_get_details(self, mock_merge_method, mock_find_by_id):
+        """
+        Make sure the GET method calls _merge_related_objects
+        """
+        mock_merge_method.return_value = [Repo('repo-1', 'Repo 1')]
+        status, body = self.get('/v2/repositories/repo-1/?details=1')
+        self.assertEqual(200, status)
+        self.assertEqual(mock_merge_method.call_count, 2)
+
+    @mock.patch('pulp.server.managers.repo.query.RepoQueryManager.find_by_id')
+    @mock.patch.object(repositories, '_merge_related_objects')
+    def test_get_without_details(self, mock_merge_method, mock_find_by_id):
+        """
+        Make sure the GET method does not call _merge_related_objects
+        """
+        mock_find_by_id.return_value = Repo('repo-1', 'Repo 1')
+        status, body = self.get('/v2/repositories/repo-1/')
+        self.assertEqual(200, status)
+        self.assertEqual(mock_merge_method.call_count, 0)
+
+    @mock.patch('pulp.server.managers.repo.query.RepoQueryManager.find_by_id')
+    @mock.patch.object(repositories, '_merge_related_objects')
+    def test_get_with_importers(self, mock_merge_method, mock_find_by_id):
+        """
+        Make sure the GET method calls _merge_related_objects
+        """
+        mock_merge_method.return_value = [Repo('repo-1', 'Repo 1')]
+        status, body = self.get('/v2/repositories/repo-1/?importers=1')
+        self.assertEqual(200, status)
+        self.assertEqual(mock_merge_method.call_count, 1)
+        call_args = mock_merge_method.call_args[0]
+        self.assertEqual(call_args[0], 'importers')
+        self.assertTrue(hasattr(call_args[1], 'find_by_repo_list'))
+
+    @mock.patch('pulp.server.managers.repo.query.RepoQueryManager.find_by_id')
+    @mock.patch.object(repositories, '_merge_related_objects')
+    def test_get_with_distributors(self, mock_merge_method, mock_find_by_id):
+        """
+        Make sure the GET method calls _merge_related_objects
+        """
+        mock_merge_method.return_value = [Repo('repo-1', 'Repo 1')]
+        status, body = self.get('/v2/repositories/repo-1/?distributors=1')
+        self.assertEqual(200, status)
+        self.assertEqual(mock_merge_method.call_count, 1)
+        call_args = mock_merge_method.call_args[0]
+        self.assertEqual(call_args[0], 'distributors')
+        self.assertTrue(hasattr(call_args[1], 'find_by_repo_list'))
 
     def test_get_missing_repo(self):
         """
@@ -954,6 +1176,36 @@ class RepoUnitAssociationQueryTests(RepoControllersTests):
 
         # Verify
         self.assertEqual(400, status)
+
+class DependencyResolutionTests(RepoControllersTests):
+
+    @mock.patch('pulp.server.managers.repo.dependency.DependencyManager.resolve_dependencies_by_criteria')
+    def test_post(self, mock_resolve_method):
+        # Setup
+        mock_resolve_method.return_value = ['foo']
+
+        # Test
+        status, body = self.post('/v2/repositories/repo/actions/resolve_dependencies/')
+
+        # Verify
+        self.assertEqual(200, status)
+
+        self.assertEqual(1, mock_resolve_method.call_count)
+
+    @mock.patch('pulp.server.managers.repo.dependency.DependencyManager.resolve_dependencies_by_criteria')
+    def test_post_bad_criteria(self, mock_resolve_method):
+        # Setup
+        mock_resolve_method.return_value = ['foo']
+        body = {
+            'criteria' : 'bar'
+        }
+
+        # Test
+        status, body = self.post('/v2/repositories/repo/actions/resolve_dependencies/', params=body)
+
+        # Verify
+        self.assertEqual(400, status)
+        self.assertEqual(0, mock_resolve_method.call_count)
 
 class RepoAssociateTests(RepoControllersTests):
 

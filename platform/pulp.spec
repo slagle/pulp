@@ -29,7 +29,7 @@
 # ---- Pulp Platform -----------------------------------------------------------
 
 Name: pulp
-Version: 0.0.307
+Version: 0.0.311
 Release: 1%{?dist}
 Summary: An application for managing software content
 Group: Development/Languages
@@ -56,7 +56,7 @@ popd
 %if %{pulp_selinux}
 # SELinux Configuration
 cd selinux/server
-perl -i -pe 'BEGIN { $VER = join ".", grep /^\d+$/, split /\./, "%{version}.%{release}"; } s!0.0.0!$VER!g;' pulp-server.te
+sed -i "s/policy_module(pulp-server,[0-9]*.[0-9]*.[0-9]*)/policy_module(pulp-server,%{version})/" pulp-server.te
 ./build.sh
 cd -
 %endif
@@ -148,6 +148,7 @@ rm -rf %{buildroot}
 
 %package server
 Summary: The pulp platform server
+Group: Development/Languages
 Requires: python-%{name}-common = %{version}
 Requires: pymongo >= 1.9
 Requires: python-setuptools
@@ -157,7 +158,7 @@ Requires: python-oauth2 >= 1.5.170-2.pulp
 Requires: python-httplib2
 Requires: python-isodate >= 0.4.4-3.pulp
 Requires: python-BeautifulSoup
-Requires: grinder >= 0.1.3-1
+Requires: grinder >= 0.1.5-1
 Requires: httpd
 Requires: mod_ssl
 Requires: openssl
@@ -171,6 +172,7 @@ Requires: mongodb-server
 Requires: qpid-cpp-server
 # RHEL5
 %if 0%{?rhel} == 5
+Group: Development/Languages
 Requires: m2crypto
 Requires: python-uuid
 Requires: python-ssl
@@ -294,6 +296,7 @@ for content, bind and system specific operations.
 
 %package admin-client
 Summary: Admin tool to administer the pulp server
+Group: Development/Languages
 Requires: python-%{name}-common = %{version}
 Requires: python-%{name}-bindings = %{version}
 Requires: python-%{name}-client-lib = %{version}
@@ -319,6 +322,7 @@ synching, and to kick off remote actions on consumers.
 
 %package consumer-client
 Summary: Consumer tool to administer the pulp consumer.
+Group: Development/Languages
 Requires: python-%{name}-common = %{version}
 Requires: python-%{name}-bindings = %{version}
 Requires: python-%{name}-client-lib = %{version}
@@ -342,6 +346,7 @@ A tool used to administer a pulp consumer.
 
 %package agent
 Summary: The Pulp agent
+Group: Development/Languages
 Requires: python-%{name}-bindings = %{version}
 Requires: python-%{name}-agent-lib = %{version}
 Requires: gofer >= 0.70
@@ -385,6 +390,7 @@ SELinux policy for Pulp's components
 # Enable SELinux policy modules
 if /usr/sbin/selinuxenabled ; then
  %{_datadir}/pulp/selinux/server/enable.sh %{_datadir}
+fi
 
 # restorcecon wasn't reading new file contexts we added when running under 'post' so moved to 'posttrans'
 # Spacewalk saw same issue and filed BZ here: https://bugzilla.redhat.com/show_bug.cgi?id=505066
@@ -411,6 +417,98 @@ exit 0
 %endif
 
 %changelog
+* Tue Jul 03 2012 wes hayutin <whayutin@redhat.com> 0.0.311-1
+- 837406 need to add yum groups to pulp spec for rhel5 to build
+  (whayutin@redhat.com)
+- test_repo_manager fails on rhel5 due to the way the data is passed to magic
+  mock (whayutin@redhat.com)
+
+* Tue Jul 03 2012 Jay Dobies <jason.dobies@redhat.com> 0.0.310-1
+- Unit tests for event listener update (jason.dobies@redhat.com)
+- Added event listener REST APIs (jason.dobies@redhat.com)
+- fixing error in user update when updating roles which was causing admin
+  permission error in the latest qe build (skarmark@redhat.com)
+- Fixed incorrect state comparison (jason.dobies@redhat.com)
+- Removed deepcopy call which was hosing up pymongo on RHEL6
+  (jason.dobies@redhat.com)
+
+* Fri Jun 29 2012 Jay Dobies <jason.dobies@redhat.com> 0.0.309-1
+- Wired up unit copy to be able to copy dependencies too
+  (jason.dobies@redhat.com)
+- Fixing broken user auth related unit tests (skarmark@redhat.com)
+- User functionality in v2, cleaning up v1 user apis and fixing unit tests
+  (skarmark@redhat.com)
+- Made the task timeout configurable in the request (jason.dobies@redhat.com)
+- Added dependency resolution REST API (jason.dobies@redhat.com)
+- Implementation and unit tests for dependency resolution manager
+  (jason.dobies@redhat.com)
+
+* Thu Jun 28 2012 Jay Dobies <jason.dobies@redhat.com> 0.0.308-1
+- wrap profiler exceptions in a PulpExecutionException. (jortel@redhat.com)
+- Involve profiler in unit install flow. (jortel@redhat.com)
+- Fix unresolved merge conflict. (jortel@redhat.com)
+- update agent to use new binding to report package profiles.
+  (jortel@redhat.com)
+- handle changes in consumer.conf. (jortel@redhat.com)
+- IDE lookup works better if you spell the @rtype package correctly
+  (jason.dobies@redhat.com)
+- Basics of the dependency manager and conduit (jason.dobies@redhat.com)
+- I have no idea how our unit tests ever ran before this change
+  (jason.dobies@redhat.com)
+- Fixed reference to removed class (jason.dobies@redhat.com)
+- V2 Users model changes, manager functions and rest api with unit tests
+  (skarmark@redhat.com)
+- removed unused constant (jason.connor@gmail.com)
+- compensate for order that is already an integer (jason.connor@gmail.com)
+- custom PulpCollection query method that utilizes the Criteria model
+  (jason.connor@gmail.com)
+- preliminary implementation of Criteria model (jason.connor@gmail.com)
+- added validation to group delete for a more informative delete operation
+  (jason.connor@gmail.com)
+- removed auto publish from group distributors (jason.connor@gmail.com)
+- add profile controller and unit tests. (jortel@redhat.com)
+- Removed duplicate conduit and reference to pointless base class
+  (jason.dobies@redhat.com)
+- Broke out conduit functionality into mixin paradigm (jason.dobies@redhat.com)
+- updated epydocs. (jortel@redhat.com)
+- add missing consumer test. (jortel@redhat.com)
+- Add profiler manager unit tests. (jortel@redhat.com)
+- test renamed. (jortel@redhat.com)
+- split profiler conduit into separate module. (jortel@redhat.com)
+- Expand ProfilerConduit; add conduit unit tests. (jortel@redhat.com)
+- Merge branch 'master' into event (jason.dobies@redhat.com)
+- Implementation of the event fire manager (jason.dobies@redhat.com)
+- Merge branch 'master' into event (jason.dobies@redhat.com)
+- Finished up event CRUD manager (jason.dobies@redhat.com)
+- SELinux spec update add missing 'fi' in %%post (jmatthews@redhat.com)
+- Add profiler tests to plugin loader & manager; Don't think ProfilerManager is
+  needed. (jortel@redhat.com)
+- Initial profiler API, conduit, managers and model. (jortel@redhat.com)
+- US21173: Adding a 'content_unit_count' attribute to the Repo model and the
+  logic to keep it up to date as units become associated and disassociated.
+  Also added lots of tests. (mhrivnak@redhat.com)
+- This test was failing sometimes because mongo was returning data in an order
+  we didn't expect. This small change puts the data into the expected order
+  before any assertions happen. (mhrivnak@redhat.com)
+- removed superfluous double instantiation of repo group pymongo collection
+  objects (jason.connor@gmail.com)
+- initial implementation of repo group manager (jason.connor@gmail.com)
+- added docstrings (jason.connor@gmail.com)
+- added unique and search indices to db models (jason.connor@gmail.com)
+- added models for repo groups and group-wide distributors
+  (jason.connor@gmail.com)
+- adding selinux packaging to pulp spec (pkilambi@redhat.com)
+- SELinux: Removing old developer setup scripts (jmatthews@redhat.com)
+- 827201 - fixing consumer_history to use start_date and end_date filters in
+  iso8601 format and history tests (skarmark@redhat.com)
+- 827211 - Running unbind through coordinator to keep any of the required
+  resources from being deleted in the middle of the operation
+  (skarmark@redhat.com)
+- Merge branch 'master' into event (jason.dobies@redhat.com)
+- Implementation of the listener CRUD and notification structure
+  (jason.dobies@redhat.com)
+- SELinux: Update labels to account for layout changes (jmatthews@redhat.com)
+
 * Fri Jun 22 2012 Jay Dobies <jason.dobies@redhat.com> 0.0.307-1
 - The server needs to explicitly create the plugins/* dirs
   (jason.dobies@redhat.com)

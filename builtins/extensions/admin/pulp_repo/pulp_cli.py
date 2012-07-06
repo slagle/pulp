@@ -106,6 +106,22 @@ class RepoSection(PulpCliSection):
             self.prompt.write('Repository [%s] does not exist on the server' % id, tag='not-found')
 
     def list(self, **kwargs):
+        """
+        :param summary: If True, equivalent to setting fields='id,display-name'.
+                        If False, no effect.
+        :type  summary: bool
+
+        :param fields:  comma-separated field names as a string, specifying
+                        which fields will be returned. This is a required
+                        parameter unless you pass summary=True.
+        :type fields:   str
+
+        :param importers:   If any value that evaluates to True, include the
+                            repo's importers in the output.
+
+        :param distributors:    If any value that evaluates to True, include
+                                the repo's distributors in the output.
+        """
 
         # This needs to be revisited. For the sake of time, the repo list in
         # rpm_repo will be hacked up for yum repositories specifically. Later
@@ -114,11 +130,9 @@ class RepoSection(PulpCliSection):
 
         self.prompt.render_title('Repositories')
 
-        repo_list = self.context.server.repo.repositories().response_body
-
         # Default flags to render_document_list
         filters = None
-        order = ['id', 'display-name', 'description', 'content_unit_count']
+        order = ['id', 'display_name', 'description', 'content_unit_count']
 
         if kwargs['summary'] is True:
             filters = ['id', 'display-name']
@@ -129,36 +143,17 @@ class RepoSection(PulpCliSection):
                 filters.append('id')
             order = ['id']
 
-        # Split apart the plugins so they can be either omitted or rendered
-        # separately. If omitted, add in the count as quick info.
-        repo_to_importer_list = {}
-        repo_to_distributor_list = {}
-        for r in repo_list:
-            if kwargs['importers']:
-                repo_to_importer_list[r['id']] = r.pop('importers', None)
-            else:
-                importer_list = r.pop('importers', [])
-                r['importer_count'] = len(importer_list)
+        query_params = {}
 
-            if kwargs['distributors']:
-                repo_to_distributor_list[r['id']] = r.pop('distributors', None)
-            else:
-                distributor_list = r.pop('distributors', [])
-                r['distributor_count'] = len(distributor_list)
+        for param in ('importers', 'distributors'):
+            if kwargs.get(param):
+                query_params[param] = True
+                filters.append(param)
 
-        # Manually loop over the repositories so we can interject the plugins
-        # manually based on the CLI flags.
-        for r in repo_list:
-            self.prompt.render_document(r, filters=filters, order=order)
-            if kwargs['importers']:
-                i = repo_to_importer_list[r['id']]
-                if i is not None:
-                    self.prompt.render_document_list(i)
+        repo_list = self.context.server.repo.repositories(query_params).response_body
 
-            if kwargs['distributors']:
-                d = repo_to_distributor_list[r['id']]
-                if d is not None:
-                    self.prompt.render_document_list(d)
+        for repo in repo_list:
+            self.prompt.render_document(repo, filters=filters, order=order)
 
     def units(self, **kwargs):
         repo_id = kwargs['id']

@@ -507,6 +507,8 @@ class RepoGroup(Model):
     Represents a group of repositories for doing batch queries and operations
     """
 
+    collection_name = 'repo_groups'
+
     unique_indices = ('id',)
     search_indices = ('display_name', 'repo_ids')
 
@@ -516,7 +518,7 @@ class RepoGroup(Model):
         self.id = id
         self.display_name = display_name
         self.description = description
-        self.repo_ids = repo_ids or None
+        self.repo_ids = repo_ids or []
         self.notes = notes or {}
         self.scratchpad = {}
 
@@ -529,12 +531,11 @@ class RepoGroupDistributor(Model):
     unique_indices = (('repo_group_id', 'id'),)
     search_indices = ('distributor_type_id', 'repo_group_id', 'id')
 
-    def __init__(self, id, distributor_type_id, repo_group_id, config, auto_publish):
+    def __init__(self, id, distributor_type_id, repo_group_id, config):
         super(RepoGroupDistributor, self).__init__()
 
         self.id = id
         self.distributor_type_id = distributor_type_id
         self.repo_group_id = repo_group_id
         self.config = config
-        self.auto_publish = auto_publish
 
