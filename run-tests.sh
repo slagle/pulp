@@ -25,10 +25,4 @@ PACKAGES="$PACKAGES,yum_importer"
 # Test Directories
 TESTS="platform/test/unit builtins/test/unit rpm-support/test/unit"
 
-if [ -z "$PULP_TOP_DIR" ]; then
-    PYTHON=${PULP_TOP_DIR}/bin/python
-else
-    PYTHON=/usr/bin/python
-fi
-
-$PYTHON /usr/bin/nosetests --with-coverage --cover-html --cover-erase --cover-package $PACKAGES $TESTS
+nosetests --with-coverage --cover-html --cover-erase --cover-package $PACKAGES $TESTS
