@@ -17,8 +17,8 @@
 # ---- Pulp --------------------------------------------------------------------
 
 Name: pulp-rpm
-Version: 0.0.310
-Release: 1%{?dist}
+Version: 0.0.313
+Release: 2%{?dist}
 Summary: Support for RPM content in the Pulp platform
 Group: Development/Languages
 License: GPLv2
@@ -30,6 +30,14 @@ BuildRequires:  python2-devel
 BuildRequires:  python-setuptools
 BuildRequires:  python-nose
 BuildRequires:  rpm-python
+
+%if 0%{?rhel} == 5
+# RHEL-5
+Requires: mkisofs
+%else
+# RHEL-6 & Fedora
+Requires: genisoimage
+%endif
 
 %description
 Provides a collection of platform plugins, client extensions and agent
@@ -94,6 +102,7 @@ rm -rf %{buildroot}
 
 %package plugins
 Summary: Pulp RPM plugins
+Group: Development/Languages
 Requires: python-pulp-rpm-common = %{version}
 Requires: pulp-server = %{version}
 
@@ -108,6 +117,7 @@ to provide RPM specific support.
 %{_usr}/lib/pulp/plugins/types/rpm_support.json
 %{_usr}/lib/pulp/plugins/importers/yum_importer/
 %{_usr}/lib/pulp/plugins/distributors/yum_distributor/
+%{_usr}/lib/pulp/plugins/distributors/iso_distributor/
 %defattr(-,apache,apache,-)
 %{_var}/www/pub
 /srv/pulp/repo_auth.wsgi
@@ -134,6 +144,7 @@ A collection of components share between RPM plugins, extensions and handlers.
 
 %package admin-extensions
 Summary: The RPM admin client extensions
+Group: Development/Languages
 Requires: python-pulp-rpm-common = %{version}
 Requires: pulp-admin-client = %{version}
 
@@ -151,6 +162,7 @@ client capabilites with RPM specific features.
 %{_usr}/lib/pulp/admin/extensions/rpm_units_search/
 %{_usr}/lib/pulp/admin/extensions/rpm_upload/
 %{_usr}/lib/pulp/admin/extensions/rpm_package_group_upload/
+%{_usr}/lib/pulp/admin/extensions/rpm_errata_upload/
 %doc
 
 
@@ -158,6 +170,7 @@ client capabilites with RPM specific features.
 
 %package consumer-extensions
 Summary: The RPM consumer client extensions
+Group: Development/Languages
 Requires: python-pulp-rpm-common = %{version}
 Requires: pulp-consumer-client = %{version}
 
@@ -175,6 +188,7 @@ client capabilites with RPM specific features.
 
 %package handlers
 Summary: Pulp agent rpm handlers
+Group: Development/Languages
 Requires: python-pulp-rpm-common = %{version}
 Requires: python-pulp-agent-lib = %{version}
 
@@ -200,6 +214,7 @@ management and Linux specific commands such as system reboot.
 
 %package yumplugins
 Summary: Yum plugins supplementing in Pulp consumer operations
+Group: Development/Languages
 Requires: python-pulp-rpm-common = %{version}
 Requires: pulp-server = %{version}
 
@@ -217,6 +232,40 @@ A collection of yum plugins supplementing Pulp consumer operations.
 
 
 %changelog
+* Thu Jul 12 2012 Jeff Ortel <jortel@redhat.com> 0.0.313-2
+- Add iso distributor to .spec. (jortel@redhat.com)
+
+* Thu Jul 12 2012 Jeff Ortel <jortel@redhat.com> 0.0.313-1
+- - ISO Export Distributor: * Basic skeleton in place * Adding iso generation
+  module * adding a makeisofs dependency (pkilambi@redhat.com)
+
+* Tue Jul 10 2012 Jeff Ortel <jortel@redhat.com> 0.0.312-2
+- bump release. (jortel@redhat.com)
+- Add Group: Development/Languages for RHEL5 builds. (jortel@redhat.com)
+- 835667 - Added default for auto-publish (jason.dobies@redhat.com)
+- Updated argument name for package category upload (jmatthews@redhat.com)
+
+* Tue Jul 10 2012 Jeff Ortel <jortel@redhat.com> 0.0.312-1
+- align version with platform. (jortel@redhat.com)
+- YumImporter:  Fixed issue building summary report for uploaded package
+  groups/categories (jmatthews@redhat.com)
+- YumDistributor: Updating publish of package groups (jmatthews@redhat.com)
+- Minor tweaks to group/category upload CLI (jason.dobies@redhat.com)
+- fixing upload to include get units and needed summary info
+  (pkilambi@redhat.com)
+- Adding client side package group upload to CLI (jmatthews@redhat.com)
+- 837850 - https publishing is broken after refactoring (jmatthews@redhat.com)
+- Made on-demand fetching of importers and distributors for a repo list call
+  available in rpm-support. (mhrivnak@redhat.com)
+- Merge branch 'master' into mhrivnak-repo-query (mhrivnak@redhat.com)
+- adding minor doc updates (mhrivnak@redhat.com)
+- Implement resolve_deps api and integrate depsolver functionality into yum
+  importer (pkilambi@redhat.com)
+- Added package group/category to unit search CLI (jmatthews@redhat.com)
+- Adding package group step to rpm_sync CLI (jmatthews@redhat.com)
+- YumImporter:  Adding upload_unit for package groups/categories
+  (jmatthews@redhat.com)
+
 * Tue Jul 03 2012 Jay Dobies <jason.dobies@redhat.com> 0.0.310-1
 - Adding depsolver module for rpm importer plugin (pkilambi@redhat.com)
 - moving the common unit upload logic out of the rpm plugin into the builtins

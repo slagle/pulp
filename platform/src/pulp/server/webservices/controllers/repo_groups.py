@@ -18,7 +18,7 @@ from pulp.server import config as pulp_config
 from pulp.server import exceptions as pulp_exceptions
 from pulp.server.auth import authorization
 from pulp.server.db.model.criteria import Criteria
-from pulp.server.db.model.repository import RepoGroup
+from pulp.server.db.model.repo_group import RepoGroup
 from pulp.server.dispatch import constants as dispatch_constants
 from pulp.server.dispatch.call import CallRequest
 from pulp.server.managers import factory as managers_factory
@@ -106,7 +106,7 @@ class RepoGroupAssociateAction(JSONController):
 
     @auth_required(authorization.EXECUTE)
     def POST(self, repo_group_id):
-        criteria = Criteria.from_json_doc(self.params())
+        criteria = Criteria.from_client_input(self.params())
         manager = managers_factory.repo_group_manager()
         tags = [resource_tag(dispatch_constants.RESOURCE_REPOSITORY_GROUP_TYPE, repo_group_id),
                 action_tag('repo_group_associate')]
@@ -114,7 +114,9 @@ class RepoGroupAssociateAction(JSONController):
                                    [repo_group_id, criteria],
                                    tags=tags)
         call_request.updates_resource(dispatch_constants.RESOURCE_REPOSITORY_GROUP_TYPE, repo_group_id)
-        group = execution.execute(call_request)
+        execution.execute(call_request)
+        collection = RepoGroup.get_collection()
+        group = collection.find_one({'id': repo_group_id})
         return self.ok(group['repo_ids'])
 
 
@@ -122,7 +124,7 @@ class RepoGroupUnassociateAction(JSONController):
 
     @auth_required(authorization.EXECUTE)
     def POST(self, repo_group_id):
-        criteria = Criteria.from_json_doc(self.params())
+        criteria = Criteria.from_client_input(self.params())
         manager = managers_factory.repo_group_manager()
         tags = [resource_tag(dispatch_constants.RESOURCE_REPOSITORY_GROUP_TYPE, repo_group_id),
                 action_tag('repo_group_unassociate')]
@@ -130,14 +132,16 @@ class RepoGroupUnassociateAction(JSONController):
                                    [repo_group_id, criteria],
                                    tags=tags)
         call_request.updates_resource(dispatch_constants.RESOURCE_REPOSITORY_GROUP_TYPE, repo_group_id)
-        group = execution.execute(call_request)
+        execution.execute(call_request)
+        collection = RepoGroup.get_collection()
+        group = collection.find_one({'id': repo_group_id})
         return self.ok(group['repo_ids'])
 
 # web.py application -----------------------------------------------------------
 
 _URLS = ('/$', RepoGroupCollection,
-         '/([!/]+)/$', RepoGroupResource,
-         '/([!/]+)/actions/associate/$', RepoGroupAssociateAction,
-         '/([!/]+)/actions/unassociate/$', RepoGroupUnassociateAction)
+         '/([^/]+)/$', RepoGroupResource,
+         '/([^/]+)/actions/associate/$', RepoGroupAssociateAction,
+         '/([^/]+)/actions/unassociate/$', RepoGroupUnassociateAction)
 
 application = web.application(_URLS, globals())

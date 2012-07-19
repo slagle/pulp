@@ -23,18 +23,26 @@ the defaults.
 import mock
 
 import pulp.plugins.loader as plugin_loader
-from pulp.plugins.model import SyncReport, PublishReport
+from pulp.plugins.model import SyncReport, PublishReport, ApplicabilityReport
 
 # -- constants ----------------------------------------------------------------
 
 # Used when reverting the monkey patch
 _ORIG_GET_DISTRIBUTOR_BY_ID = None
+_ORIG_GET_GROUP_DISTRIBUTOR_BY_ID = None
 _ORIG_GET_IMPORTER_BY_ID = None
+_ORIG_GET_GROUP_IMPORTER_BY_ID = None
 _ORIG_GET_PROFILER_BY_TYPE = None
 
 # -- plugin classes -----------------------------------------------------------
 
 class MockImporter(mock.Mock):
+
+    @classmethod
+    def metadata(cls):
+        return {'types' : ['mock-type']}
+
+class MockGroupImporter(mock.Mock):
 
     @classmethod
     def metadata(cls):
@@ -46,22 +54,41 @@ class MockDistributor(mock.Mock):
     def metadata(cls):
         return {'types' : ['mock-type']}
 
+class MockGroupDistributor(mock.Mock):
+
+    @classmethod
+    def metadata(cls):
+        return {'types' : ['mock-type']}
+
 class MockProfiler(mock.Mock):
 
     @classmethod
     def metadata(cls):
-        return {'types' : ['mock-type', 'type-1', 'rpm']}
+        return {'types' : ['mock-type', 'type-1', 'errata']}
+
+class MockRpmProfiler(mock.Mock):
+
+    @classmethod
+    def metadata(cls):
+        return {'types' : ['rpm']}
 
 # -- mock instances -----------------------------------------------------------
 
 MOCK_IMPORTER = MockImporter()
+MOCK_GROUP_IMPORTER = MockGroupImporter()
 MOCK_DISTRIBUTOR = MockDistributor()
 MOCK_DISTRIBUTOR_2 = MockDistributor()
+MOCK_GROUP_DISTRIBUTOR = MockGroupDistributor()
+MOCK_GROUP_DISTRIBUTOR_2 = MockGroupDistributor()
 MOCK_PROFILER = MockProfiler()
+MOCK_PROFILER_RPM = MockRpmProfiler()
+MOCK_PROFILERS = [MOCK_PROFILER, MOCK_PROFILER_RPM]
 
 # Set by install; can edit these during a test to simulate a plugin being uninstalled
 DISTRIBUTOR_MAPPINGS = None
+GROUP_DISTRIBUTOR_MAPPINGS = None
 IMPORTER_MAPPINGS = None
+GROUP_IMPORTER_MAPPINGS = None
 PROFILER_MAPPINGS = None
 
 # -- public -------------------------------------------------------------------
@@ -76,19 +103,27 @@ def install():
     plugin_loader._create_loader()
 
     plugin_loader._LOADER.add_importer('mock-importer', MockImporter, {})
+    plugin_loader._LOADER.add_group_importer('mock-group-importer', MockGroupImporter, {})
     plugin_loader._LOADER.add_distributor('mock-distributor', MockDistributor, {})
     plugin_loader._LOADER.add_distributor('mock-distributor-2', MockDistributor, {})
+    plugin_loader._LOADER.add_group_distributor('mock-group-distributor', MockGroupDistributor, {})
+    plugin_loader._LOADER.add_group_distributor('mock-group-distributor-2', MockGroupDistributor, {})
     plugin_loader._LOADER.add_profiler('mock-profiler', MockProfiler, {})
+    plugin_loader._LOADER.add_profiler('mock-rpm-profiler', MockRpmProfiler, {})
 
     # -- return mock instances instead of ephemeral ones ----------------------
 
     # Save the state of the original plugin loader so it can be reverted
     global _ORIG_GET_DISTRIBUTOR_BY_ID
+    global _ORIG_GET_GROUP_DISTRIBUTOR_BY_ID
     global _ORIG_GET_IMPORTER_BY_ID
+    global _ORIG_GET_GROUP_IMPORTER_BY_ID
     global _ORIG_GET_PROFILER_BY_TYPE
 
     _ORIG_GET_DISTRIBUTOR_BY_ID = plugin_loader.get_distributor_by_id
+    _ORIG_GET_GROUP_DISTRIBUTOR_BY_ID = plugin_loader.get_group_distributor_by_id
     _ORIG_GET_IMPORTER_BY_ID = plugin_loader.get_importer_by_id
+    _ORIG_GET_GROUP_IMPORTER_BY_ID = plugin_loader.get_group_importer_by_id
     _ORIG_GET_PROFILER_BY_TYPE = plugin_loader.get_profiler_by_type
 
     # Setup the importer/distributor mappings that return the mock instances
@@ -98,15 +133,27 @@ def install():
             'mock-distributor-2' : MOCK_DISTRIBUTOR_2,
     }
 
+    global GROUP_DISTRIBUTOR_MAPPINGS
+    GROUP_DISTRIBUTOR_MAPPINGS = {
+        'mock-group-distributor' : MOCK_GROUP_DISTRIBUTOR,
+        'mock-group-distributor-2' : MOCK_GROUP_DISTRIBUTOR_2,
+    }
+
     global IMPORTER_MAPPINGS
     IMPORTER_MAPPINGS = {
         'mock-importer' : MOCK_IMPORTER
     }
 
-    global PROFILER_MAPPINGS
-    PROFILER_MAPPINGS = {
-        'rpm' : MOCK_PROFILER
+    global GROUP_IMPORTER_MAPPINGS
+    GROUP_IMPORTER_MAPPINGS = {
+        'mock-group-importer' : MOCK_GROUP_IMPORTER
     }
+
+    global PROFILER_MAPPINGS
+    PROFILER_MAPPINGS = {}
+    for profiler in MOCK_PROFILERS:
+        for t in profiler.metadata()['types']:
+            PROFILER_MAPPINGS[t] = profiler
 
     # Return the mock instance; eventually can enhance this to support
     # multiple IDs and instances
@@ -116,11 +163,23 @@ def install():
 
         return DISTRIBUTOR_MAPPINGS[id], {}
 
+    def mock_get_group_distributor_by_id(id):
+        if id not in GROUP_DISTRIBUTOR_MAPPINGS:
+            raise plugin_loader.PluginNotFound()
+
+        return GROUP_DISTRIBUTOR_MAPPINGS[id], {}
+
     def mock_get_importer_by_id(id):
         if id not in IMPORTER_MAPPINGS:
             raise plugin_loader.PluginNotFound()
 
         return IMPORTER_MAPPINGS[id], {}
+
+    def mock_get_group_importer_by_id(id):
+        if id not in GROUP_IMPORTER_MAPPINGS:
+            raise plugin_loader.PluginNotFound()
+
+        return GROUP_IMPORTER_MAPPINGS[id], {}
 
     def mock_get_profiler_by_type(type):
         if type not in PROFILER_MAPPINGS:
@@ -130,25 +189,39 @@ def install():
 
     # Monkey patch in the mock methods
     plugin_loader.get_distributor_by_id = mock_get_distributor_by_id
+    plugin_loader.get_group_distributor_by_id = mock_get_group_distributor_by_id
     plugin_loader.get_importer_by_id = mock_get_importer_by_id
+    plugin_loader.get_group_importer_by_id = mock_get_group_importer_by_id
     plugin_loader.get_profiler_by_type = mock_get_profiler_by_type
 
     # -- configure the mock instances -----------------------------------------
 
     # By default, have the plugins indicate configurations are valid
-    MOCK_IMPORTER.validate_config.return_value = True
+    MOCK_IMPORTER.validate_config.return_value = True, None
     MOCK_IMPORTER.sync_repo.return_value = SyncReport(True, 10, 5, 1, 'Summary of the sync', 'Details of the sync')
 
-    MOCK_DISTRIBUTOR.validate_config.return_value = True
+    MOCK_GROUP_IMPORTER.validate_config.return_value = True, None
+
+    MOCK_DISTRIBUTOR.validate_config.return_value = True, None
     MOCK_DISTRIBUTOR.publish_repo.return_value = PublishReport(True, 'Summary of the publish', 'Details of the publish')
 
-    MOCK_DISTRIBUTOR_2.validate_config.return_value = True
+    MOCK_DISTRIBUTOR_2.validate_config.return_value = True, None
     MOCK_DISTRIBUTOR_2.publish_repo.return_value = PublishReport(True, 'Summary of the publish', 'Details of the publish')
 
-    MOCK_PROFILER.update_profile = lambda i,p,c,x: p
-    MOCK_PROFILER.install_units = lambda i,u,o,c,x: sorted(u)
-    MOCK_PROFILER.update_units = lambda i,u,o,c,x: sorted(u)
-    MOCK_PROFILER.uninstall_units = lambda i,u,o,c,x: sorted(u)
+    MOCK_GROUP_DISTRIBUTOR.validate_config.return_value = True, None
+    MOCK_GROUP_DISTRIBUTOR_2.validate_config.return_value = True, None
+
+    for profiler in MOCK_PROFILERS:
+        profiler.update_profile = \
+            mock.Mock(side_effect=lambda i,p,c,x: p)
+        profiler.install_units = \
+            mock.Mock(side_effect=lambda i,u,o,c,x: sorted(u))
+        profiler.update_units = \
+            mock.Mock(side_effect=lambda i,u,o,c,x: sorted(u))
+        profiler.uninstall_units = \
+            mock.Mock(side_effect=lambda i,u,o,c,x: sorted(u))
+        profiler.unit_applicable = \
+            mock.Mock(side_effect=lambda i,u,c,x: ApplicabilityReport(u, False, 'mocked'))
 
 def reset():
     """
@@ -157,17 +230,25 @@ def reset():
 
     # Reset the mock instances; reset doesn't do everything hence the manual steps
     MOCK_IMPORTER.reset_mock()
+    MOCK_GROUP_IMPORTER.reset_mock()
     MOCK_DISTRIBUTOR.reset_mock()
     MOCK_DISTRIBUTOR_2.reset_mock()
+    MOCK_GROUP_DISTRIBUTOR.reset_mock()
+    MOCK_GROUP_DISTRIBUTOR_2.reset_mock()
     MOCK_PROFILER.reset_mock()
+    MOCK_PROFILER_RPM.reset_mock()
 
     # Undo the monkey patch
     plugin_loader.get_distributor_by_id = _ORIG_GET_DISTRIBUTOR_BY_ID
+    plugin_loader.get_group_distributor_by_id = _ORIG_GET_GROUP_DISTRIBUTOR_BY_ID
     plugin_loader.get_importer_by_id = _ORIG_GET_IMPORTER_BY_ID
+    plugin_loader.get_group_importer_by_id = _ORIG_GET_GROUP_IMPORTER_BY_ID
     plugin_loader.get_profiler_by_type = _ORIG_GET_PROFILER_BY_TYPE
 
     # Clean out the loaded plugin types
     plugin_loader._LOADER.remove_importer('mock-importer')
+    plugin_loader._LOADER.remove_group_importer('mock-group-importer')
     plugin_loader._LOADER.remove_distributor('mock-distributor')
     plugin_loader._LOADER.remove_distributor('mock-distributor-2')
-    plugin_loader._LOADER.remove_distributor('mock-profiler')
+    plugin_loader._LOADER.remove_group_distributor('mock-group-distributor')
+    plugin_loader._LOADER.remove_group_distributor('mock-group-distributor-2')

@@ -66,7 +66,7 @@ class UserManager(object):
 
         if login is None or not is_user_login_valid(login):
             invalid_values.append('login')
-        if name is not None and not isinstance(name, str):
+        if name is not None and not isinstance(name, basestring):
             invalid_values.append('name')
         if roles is not None and not isinstance(roles, list):
             invalid_values.append('roles')
@@ -105,7 +105,7 @@ class UserManager(object):
         """
 
         # Raise exception if login is invalid or 'admin'
-        if login is None or not isinstance(login, str) or login == 'admin':
+        if login is None or not isinstance(login, basestring) or login == 'admin':
             raise InvalidValue(['login'])
 
         # Validation
@@ -144,13 +144,13 @@ class UserManager(object):
         # Check
         invalid_values = []
         if 'password' in delta:
-            if not isinstance(delta['password'], str):
+            if not isinstance(delta['password'], basestring):
                 invalid_values.append('password')
             else:
                 user['password'] = password_util.hash_password(delta['password'])
 
         if 'name' in delta:
-            if delta['name'] is not None and not isinstance(delta['name'], str):
+            if delta['name'] is not None and not isinstance(delta['name'], basestring):
                 invalid_values.append('name')
             else:
                 user['name'] = delta['name']
@@ -177,6 +177,8 @@ class UserManager(object):
         @rtype:  list of dict
         """
         all_users = list(User.get_collection().find())
+        for user in all_users:
+            user.pop('password')
         return all_users
 
 

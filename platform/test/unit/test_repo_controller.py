@@ -50,8 +50,8 @@ class RepoControllersTests(base.PulpWebserviceTests):
         super(RepoControllersTests, self).clean()
         Repo.get_collection().remove(safe=True)
 
-class RepoAdvancedSearchTests(RepoControllersTests):
-    @mock.patch.object(repositories.RepoAdvancedSearch, 'params')
+class RepoSearchTests(RepoControllersTests):
+    @mock.patch.object(repositories.RepoSearch, 'params')
     @mock.patch.object(PulpCollection, 'query')
     def test_basic_search(self, mock_query, mock_params):
         mock_params.return_value = {
@@ -65,7 +65,21 @@ class RepoAdvancedSearchTests(RepoControllersTests):
         # one call each for criteria, importers, and distributors
         self.assertEqual(mock_params.call_count, 3)
 
-    @mock.patch.object(repositories.RepoAdvancedSearch, 'params')
+    @mock.patch.object(PulpCollection, 'query')
+    @mock.patch('pulp.server.db.model.criteria.Criteria.from_client_input')
+    def test_get_details(self, mock_from_client, mock_query):
+        status, body = self.get('/v2/repositories/search/?details=1&limit=2')
+        self.assertEqual(status, 200)
+        self.assertEquals(mock_from_client.call_count, 1)
+
+        # make sure the non-criteria arguments aren't passed to the criteria
+        # constructor
+        criteria_args = mock_from_client.call_args[0][0]
+        self.assertTrue('limit' in criteria_args)
+        self.assertFalse('details' in criteria_args)
+        self.assertFalse('importers' in criteria_args)
+
+    @mock.patch.object(repositories.RepoSearch, 'params')
     @mock.patch.object(PulpCollection, 'query')
     def test_return_value(self, mock_query, mock_params):
         """
@@ -83,7 +97,7 @@ class RepoAdvancedSearchTests(RepoControllersTests):
         self.assertEqual(ret[1], mock_query.return_value)
 
     @mock.patch('pulp.server.webservices.controllers.repositories.RepoCollection._process_repos')
-    @mock.patch.object(repositories.RepoAdvancedSearch, 'params')
+    @mock.patch.object(repositories.RepoSearch, 'params')
     @mock.patch.object(PulpCollection, 'query')
     def test_search_with_importers(self, mock_query, mock_params, mock_process_repos):
         mock_params.return_value = {
@@ -96,7 +110,7 @@ class RepoAdvancedSearchTests(RepoControllersTests):
         mock_process_repos.assert_called_once_with([], 1, 0)
 
     @mock.patch('pulp.server.webservices.controllers.repositories.RepoCollection._process_repos')
-    @mock.patch.object(repositories.RepoAdvancedSearch, 'params')
+    @mock.patch.object(repositories.RepoSearch, 'params')
     @mock.patch.object(PulpCollection, 'query')
     def test_search_with_distributors(self, mock_query, mock_params, mock_process_repos):
         mock_params.return_value = {
@@ -109,7 +123,7 @@ class RepoAdvancedSearchTests(RepoControllersTests):
         mock_process_repos.assert_called_once_with([], 0, 1)
 
     @mock.patch('pulp.server.webservices.controllers.repositories.RepoCollection._process_repos')
-    @mock.patch.object(repositories.RepoAdvancedSearch, 'params')
+    @mock.patch.object(repositories.RepoSearch, 'params')
     @mock.patch.object(PulpCollection, 'query')
     def test_search_with_both(self, mock_query, mock_params, mock_process_repos):
         mock_params.return_value = {
@@ -121,7 +135,7 @@ class RepoAdvancedSearchTests(RepoControllersTests):
         self.assertEqual(ret[0], 200)
         mock_process_repos.assert_called_once_with([], 1, 1)
 
-    @mock.patch.object(repositories.RepoAdvancedSearch, 'params', return_value={})
+    @mock.patch.object(repositories.RepoSearch, 'params', return_value={})
     def test_require_criteria(self, mock_params):
         """
         make sure this raises a MissingValue exception if 'criteria' is not
@@ -133,6 +147,25 @@ class RepoAdvancedSearchTests(RepoControllersTests):
         self.assertTrue(isinstance(value, dict))
         self.assertTrue('missing_property_names' in value)
         self.assertEqual(value['missing_property_names'], [u'criteria'])
+
+    @mock.patch.object(PulpCollection, 'query')
+    def test_get(self, mock_query):
+        """
+        Make sure that we can do a criteria-based search with GET. Ensures that
+        a proper Criteria object is created and passed to the collection's
+        query method.
+        """
+        status, body = self.get(
+            '/v2/repositories/search/?field=id&field=display_name&limit=20')
+        self.assertEqual(status, 200)
+        self.assertEqual(mock_query.call_count, 1)
+        generated_criteria = mock_query.call_args[0][0]
+        self.assertTrue(isinstance(generated_criteria, criteria.Criteria))
+        self.assertEqual(len(generated_criteria.fields), 2)
+        self.assertTrue('id' in generated_criteria.fields)
+        self.assertTrue('display_name' in generated_criteria.fields)
+        self.assertEqual(generated_criteria.limit, 20)
+        self.assertTrue(generated_criteria.skip is None)
 
 
 class RepoCollectionTests(RepoControllersTests):

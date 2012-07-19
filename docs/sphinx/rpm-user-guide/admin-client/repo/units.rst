@@ -385,6 +385,316 @@ upload process.
 
 .. _orphaned-packages:
 
+Uploading Package Groups/Categories Into a Repository
+-----------------------------------------------------
+
+Package groups and categories may be uploaded into any Pulp repository.
+Please refer to the RPM upload section for more details on the upload process.
+
+.. _upload-create-package-group-or-category:
+
+Uploading a Package Group
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``group`` command is used to initialize and upload a package group into a repository.
+
+
+The following arguments are available on the ``group`` command:
+
+``--repo-id``
+  Identifies the repository into which to upload the specified package group. This
+  argument is required and must refer to an existing repository.
+
+``--group-id, -i``
+  The identifier for this package group.  This argument is required.
+
+``--name, -n``
+  Name of this package group.  This argument is required.
+
+``--description, -d``
+  Description of this package group.  This argument is required.
+
+``--cond-name``
+  Adds an entry to the conditional package name list under the package group.
+  A conditional package entry will only install a package if the specified 
+  required package name is installed on the system.  For example an entry 
+  of 'foo-fr' may be marked as requiring 'foo'.  In this case if 'foo' is 
+  installed on the system, then 'foo-fr' will be installed, otherwise 'foo-fr'
+  is not installed.
+  The format for this entry is: "package_name:required_package_name"
+  Multiple entries may be indicated by specifying the argument multiple times.
+
+``--mand-name``
+  Adds an entry to the mandatory package name list under the package group.
+  A mandatory package entry will always be installed if this package group is
+  installed.  This means a GUI like Anaconda or PackageKit will not allow 
+  deselecting this package for installation.
+  Multiple entries may be indicated by specifying the argument multiple times.
+
+``--opt-name``
+  Adds an entry to the optional package name list under the package group.
+  An optional package entry is typically not installed when this package group
+  is installed, but it is possible if using something like PackageKit to select 
+  this entry for installation.
+  Multiple entries may be indicated by specifying the argument multiple times.
+
+``--default-name, -p``
+  Adds an entry to the default package name list under the package group.
+  A default package entry is typically installed when the package group is
+  installed, but it is possible if using something like PackageKit to unselect 
+  a particular package.
+  Multiple entries may be indicated by specifying the argument multiple times.
+
+``--display-order``
+  Sets the 'displayorder' value on the package group.  Typically an integer 
+  suggesting when to display this package group.
+
+``--langonly```
+  Set the 'langonly' field on the package group.
+
+``--default``
+  If specified, this will set the "default" flag on the package group to True.
+  If omitted the "default" flag is set to False
+
+``--user-visible``
+  If specified, this will set the "uservisible" flag on the package group to True.
+  If omitted the "default" flag is set to False
+
+``-v``
+  If specified, more detailed information about the upload will be displayed.
+
+Below is the sample output from the ``group`` command when uploading a package group::
+
+ $ pulp-admin repo uploads group --repo-id demo --group-id devtools --name DevTools --description "List of development tools" -p scala -p sbt -p vim
+ +----------------------------------------------------------------------+
+                          Package Group Creation
+ +----------------------------------------------------------------------+
+
+ Starting upload of selected packages. If this process is stopped through ctrl+c,
+ the uploads will be paused and may be resumed later using the resume command or
+ cancelled entirely using the cancel command.
+ 
+ Importing into the repository...
+ ... completed
+
+ Deleting the upload request...
+ ... completed
+
+Uploading a Package Category
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``category`` command is used to initialize and upload a package category into a repository.
+
+
+The following arguments are available on the ``category`` command:
+
+``--repo-id``
+  Identifies the repository into which to upload the specified package category. This
+  argument is required and must refer to an existing repository.
+
+``--category-id, -i``
+  The identifier for this package category.  This argument is required.
+
+``--name, -n``
+  Name of this package category.  This argument is required.
+
+``--description, -d``
+  Description of this package category.  This argument is required.
+
+``--group, -g``
+  Adds a package group id to this category.
+  Multiple entries may be indicated by specifying the argument multiple times.
+
+``--display-order``
+  Sets the 'displayorder' value on the package category.  Typically an integer 
+  suggesting when to display this package category.
+
+``-v``
+  If specified, more detailed information about the upload will be displayed.
+
+Below is the sample output from the ``category`` command when uploading a package category::
+
+  pulp-admin repo uploads category --repo-id demo --category-id apps --name Apps --description "Popular Applications" -g chrome -g xchat2 -g thunderbird 
+  +----------------------------------------------------------------------+
+                         Package Category Creation
+  +----------------------------------------------------------------------+
+
+  Starting upload of selected packages. If this process is stopped through ctrl+c,
+  the uploads will be paused and may be resumed later using the resume command or
+  cancelled entirely using the cancel command.
+
+  Importing into the repository...
+  ... completed
+
+  Deleting the upload request...
+  ... completed
+
+Uploading an Erratum Into a Repository
+--------------------------------------
+
+An erratum may be uploaded into any Pulp repository.
+Please refer to the RPM upload section for more details on the upload process.
+
+.. _upload-create-erratum:
+
+Uploading an Erratum
+^^^^^^^^^^^^^^^^^^^^
+
+The ``errata`` command is used to initialize and upload an erratum into a repository.
+
+
+The following arguments are available on the ``erratum`` command:
+
+``--repo-id``
+  Identifies the repository into which to upload the specified erratum. This
+  argument is required and must refer to an existing repository.
+
+``--erratum-id, -i``
+  The identifier for this erratum.  This argument is required.
+
+``--title, -n``
+  The title of this erratum.  This argument is required.
+
+``--description, -d``
+  Description of this erratum.  This argument is required.
+
+``--version``
+  The version of this erratum.  This argument is required.
+
+``--release``           
+  The release of this erratum.  This argument is required.
+
+``--type, -t``
+  The type of this erratum, common examples are: "bugzilla", "security", "enhancement".
+  This argument is required.
+
+``--status, -s``
+  The status of this erratum, common example is "final".  This argument is required.
+
+``--updated, -u``
+  The date this erratum was updated.  The expected format is "YYYY-MM-DD HH:MM:SS".
+  This argument is required.
+
+``--issued``
+  The date this erratum was issued.  The expected format is "YYYY-MM-DD HH:MM:SS".
+  This argument is required.
+
+``--reference-csv, -r``
+  A path to a file containing reference information for this erratum.
+  The format of the data in the file must be one line per record. 
+  Each line must be in the format "href,type,id,title".
+  Common examples of reference information would be bugzilla or CVE entries.
+
+``--pkglist-csv, -p``
+  A path to a file containing information on the packages associated to this erratum.
+  The format of the data in the file must be one line per record.
+  Each line must be in the format "name,version,release,epoch,arch,filename,checksum,checksum_type,sourceurl".
+  This argument is required.
+
+``--from``
+  A string identifying who issued this erratum, typically an email address.
+  This argument is required.
+
+``--pushcount``
+  Sets the 'pushcount' entry on this erratum, entry must be an integer.
+  A default value of '1' will be used if not specified.
+
+``--reboot-suggested``
+  Sets the reboot suggested flag on the erratum if specified.
+
+``--severity``
+  Sets the severity of this erratum, expects a string.
+
+``--rights``
+  Sets the rights for this erratum, expects a string.
+
+``--summary``
+  Sets the summary for this erratum, expects a string.
+
+``--solution``
+  Sets the solution for this erratum, expects a string.
+
+``-v``
+  If specified, more detailed information about the upload will be displayed.
+
+Below is a sample package list csv file::
+
+  $ cat package_list.csv 
+  xen,3.0.3,105.el5_5.2,0,i386,xen-3.0.3-105.el5_5.2.i386.rpm,0f1174b38383b01a77278b0d9f289987,md5,xen-3.0.3-105.el5_5.2.src.rpm
+  xen-devel,3.0.3,105.el5_5.2,0,i386,xen-devel-3.0.3-105.el5_5.2.i386.rpm,3680d1dde276fd155ead7203508fed30,md5,xen-3.0.3-105.el5_5.2.src.rpm
+
+Below is a sample references csv file::
+  
+  $ cat references.csv 
+  http://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=580398,bugzilla,580398,Windows Logo testing likes its PCI classes to be consistent
+  http://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=517903,bugzilla,517903,Add -no-kvm-pit-reinject in qemu cmdline for RHEL guests
+
+Below is the sample output from the ``errata`` command when uploading an erratum::
+
+  $ pulp-admin repo uploads errata --repo-id errata_demo --erratum-id DEMO_ID_1342457000 --title "Demo Errata created on Mon Jul 16 12:43:20 EDT 2012" --description "This is the description" --version 1 --release el6 --type enhancement --status final --updated "Mon Jul 16 12:43:20 EDT 2012" --issued "Mon Jul 16 12:43:20 EDT 2012" --reference-csv references.csv --pkglist-csv package_list.csv --from "pulp-list@redhat.com" --pushcount 1 --severity "example severity" --rights "example rights" --summary "example summary" --solution "solution text would go here"  -v
+  +----------------------------------------------------------------------+
+                               Erratum Creation
+  +----------------------------------------------------------------------+
+
+  Erratum Details:
+    Id:                DEMO_ID_1342457000
+    Title:             Demo Errata created on Mon Jul 16 12:43:20 EDT 2012
+    Type:              enhancement
+    Severity:          example severity
+    Status:            final
+    Solution:          solution text would go here
+    Issued:            Mon Jul 16 12:43:20 EDT 2012
+    Updated:           Mon Jul 16 12:43:20 EDT 2012
+    From Str:          pulp-list@redhat.com
+    Version:           1
+    Release:           el6
+    Description:       This is the description
+    Summary:           example summary
+    Pkglist:           
+      Name:     el6
+      Packages: 
+        Arch:     i386
+        Epoch:    0
+        Filename: xen-3.0.3-105.el5_5.2.i386.rpm
+        Name:     xen
+        Release:  105.el5_5.2
+        Src:      xen-3.0.3-105.el5_5.2.src.rpm
+        Sums:     0f1174b38383b01a77278b0d9f289987
+        Type:     md5
+        Version:  3.0.3
+        Arch:     i386
+        Epoch:    0
+        Filename: xen-devel-3.0.3-105.el5_5.2.i386.rpm
+        Name:     xen-devel
+        Release:  105.el5_5.2
+        Src:      xen-3.0.3-105.el5_5.2.src.rpm
+        Sums:     3680d1dde276fd155ead7203508fed30
+        Type:     md5
+        Version:  3.0.3
+    Short:    
+    Pushcount:         1
+    Reboot Suggested:  False
+    References:        
+      Href:  http://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=580398
+      Id:    580398
+      Title: Windows Logo testing likes its PCI classes to be consistent
+      Type:  bugzilla
+      Href:  http://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=517903
+      Id:    517903
+      Title: Add -no-kvm-pit-reinject in qemu cmdline for RHEL guests
+      Type:  bugzilla
+    Rights:            example rights
+
+  Starting upload of selected packages. If this process is stopped through ctrl+c,
+  the uploads will be paused and may be resumed later using the resume command or
+  cancelled entirely using the cancel command.
+
+  Importing into the repository...
+  ... completed
+
+  Deleting the upload request...
+  ... completed
+
 Orphaned Packages
 -----------------
 

@@ -25,6 +25,8 @@ pulp_log_dir = os.path.join(pulp_top_dir, "var/log/pulp")
 pulp_lib_dir = os.path.join(pulp_top_dir, "var/lib/pulp")
 pulp_pki_dir = os.path.join(pulp_top_dir, "etc/pki/pulp")
 pub_dir = os.path.join(pulp_top_dir, "var/www/pub")
+WARNING_COLOR = '\033[31m'
+WARNING_RESET = '\033[0m'
 
 DIRS = (
     '/etc',
@@ -68,6 +70,8 @@ DIRS = (
     '/usr/lib/pulp/plugins',
     '/usr/lib/pulp/plugins/distributors',
     '/usr/lib/pulp/plugins/importers',
+    '/usr/lib/pulp/plugins/group_distributors',
+    '/usr/lib/pulp/plugins/group_importers',
     '/usr/lib/pulp/plugins/profilers',
     '/usr/lib/pulp/plugins/types',
     '/var/lib/pulp/published',
@@ -97,6 +101,7 @@ LINKS = (
     ('builtins/extensions/admin/pulp_server_info', DIR_ADMIN_EXTENSIONS + 'pulp_server_info'),
     ('builtins/extensions/admin/pulp_tasks', DIR_ADMIN_EXTENSIONS + 'pulp_tasks'),
     ('builtins/extensions/admin/pulp_upload', DIR_ADMIN_EXTENSIONS + 'pulp_upload'),
+    ('builtins/extensions/admin/pulp_user', DIR_ADMIN_EXTENSIONS + 'pulp_user'),
 
     ('builtins/extensions/consumer/pulp_consumer', DIR_CONSUMER_EXTENSIONS + 'pulp_consumer'),
 
@@ -132,6 +137,7 @@ LINKS = (
     ('rpm-support/extensions/admin/rpm_units_search', DIR_ADMIN_EXTENSIONS + 'rpm_units_search'),
     ('rpm-support/extensions/admin/rpm_upload', DIR_ADMIN_EXTENSIONS + 'rpm_upload'),
     ('rpm-support/extensions/admin/rpm_package_group_upload', DIR_ADMIN_EXTENSIONS + 'rpm_package_group_upload'),
+    ('rpm-support/extensions/admin/rpm_errata_upload', DIR_ADMIN_EXTENSIONS + 'rpm_errata_upload'),
 
     ('rpm-support/extensions/consumer/rpm_consumer', DIR_CONSUMER_EXTENSIONS + 'rpm_consumer'),
 
@@ -142,8 +148,9 @@ LINKS = (
     ('rpm-support/plugins/types/rpm_support.json', DIR_PLUGINS + '/types/rpm_support.json'),
     ('rpm-support/plugins/importers/yum_importer', DIR_PLUGINS + '/importers/yum_importer'),
     ('rpm-support/plugins/distributors/yum_distributor', DIR_PLUGINS + '/distributors/yum_distributor'),
+    ('rpm-support/plugins/distributors/iso_distributor', DIR_PLUGINS + '/distributors/iso_distributor'),
 
-    ('rpm-support/src/pulp/client/consumer/yumplugin/pulp-profile-update.py', '/usr/lib/yum-plugins/pulp-profile-update.py'),
+    ('rpm-support/usr/lib/yum-plugins/pulp-profile-update.py', '/usr/lib/yum-plugins/pulp-profile-update.py'),
     ('rpm-support/srv/pulp/repo_auth.wsgi', '/srv/pulp/repo_auth.wsgi'),
     )
 
@@ -239,6 +246,8 @@ def parse_cmdline():
 
     return (opts, args)
 
+def warning(msg):
+    print "%s%s%s" % (WARNING_COLOR, msg, WARNING_RESET)
 
 def debug(opts, msg):
     if not opts.debug:
@@ -251,10 +260,10 @@ def create_dirs(opts):
         if d.startswith('/'):
             d = d[1:]
         d = os.path.join(pulp_top_dir, d)
-        debug(opts, 'creating directory: %s' % d)
         if os.path.exists(d) and os.path.isdir(d):
-            debug(opts, '%s exists, skipping' % d)
+            debug(opts, 'skipping %s exists' % d)
             continue
+        debug(opts, 'creating directory: %s' % d)
         os.makedirs(d, 0777)
 
 
@@ -279,23 +288,17 @@ def install(opts):
     if _devel:
         devel(opts)
 
+    warnings = []
     create_dirs(opts)
 
     currdir = os.path.abspath(os.path.dirname(__file__))
     for src, dst in getlinks():
-        debug(opts, 'creating link: %s' % dst)
-        target = os.path.join(currdir, src)
-        try:
-            os.symlink(target, dst)
-        except OSError, e:
-            if e.errno != 17:
-                raise
-            debug(opts, '%s exists, skipping' % dst)
-            continue
+        warning_msg = create_link(opts, os.path.join(currdir,src), dst)
+        if warning_msg:
+            warnings.append(warning_msg)
 
     # Link between pulp and apache
-    if not os.path.exists(pub_dir):
-        os.symlink(os.path.join(pulp_lib_dir, "published"), pub_dir)
+    create_link(opts, os.path.join(pulp_lib_dir, "published"), pub_dir)
 
     # Grant write access to the pulp tools log file and pulp
     # packages dir for the apache user
@@ -307,9 +310,14 @@ def install(opts):
     # guarantee apache always has write permissions
     os.system('chmod 3775 %s' % pulp_log_dir)
     os.system('chmod 3775 %s' % pulp_lib_dir)
+
     # Update for certs
     os.system('chown -R %s:%s %s' % (uid, gid, pulp_pki_dir))
 
+    if warnings:
+        print "\n***\nPossible problems:  Please read below\n***"
+        for w in warnings:
+            warning(w)
     return os.EX_OK
 
 def devel(opts):
@@ -407,6 +415,38 @@ def uninstall(opts):
         os.unlink(os.path.join(pulp_top_dir, 'var/www/html/pub'))
 
     return os.EX_OK
+
+
+def create_link(opts, src, dst):
+    if not os.path.lexists(dst):
+        return _create_link(opts, src, dst)
+
+    if not os.path.islink(dst):
+        return "[%s] is not a symbolic link as we expected, please adjust if this is not what you intended." % (dst)
+
+    if not os.path.exists(os.readlink(dst)):
+        warning('BROKEN LINK: [%s] attempting to delete and fix it to point to %s.' % (dst, src))
+        try:
+            os.unlink(dst)
+            return _create_link(opts, src, dst)
+        except:
+            msg = "[%s] was a broken symlink, failed to delete and relink to [%s], please fix this manually" % (dst, src)
+            return msg
+
+    debug(opts, 'verifying link: %s points to %s' % (dst, src))
+    dst_stat = os.stat(dst)
+    src_stat = os.stat(src)
+    if dst_stat.st_ino != src_stat.st_ino:
+        msg = "[%s] is pointing to [%s] which is different than the intended target [%s]" % (dst, os.readlink(dst), src)
+        return msg
+
+def _create_link(opts, src, dst):
+        debug(opts, 'creating link: %s pointing to %s' % (dst, src))
+        try:
+            os.symlink(src, dst)
+        except OSError, e:
+            msg = "Unable to create symlink for [%s] pointing to [%s], received error: <%s>" % (dst, src, e)
+            return msg
 
 # -----------------------------------------------------------------------------
 

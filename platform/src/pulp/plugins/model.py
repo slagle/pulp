@@ -17,7 +17,7 @@ plugin method call. Objects defined in this module will have extra information
 bundled in that is relevant to the plugin's state for the given entity.
 """
 
-class Repository:
+class Repository(object):
     """
     Contains repository data and any additional data relevant for the plugin to
     function.
@@ -35,19 +35,18 @@ class Repository:
                  programmatically describe the repository
     @type notes: str or None
 
-    @ivar working_dir: local (to the Pulp server) directory the importer may use
-          to store any temporary data required by the importer; this directory
-          is unique for each repository
+    @ivar working_dir: local (to the Pulp server) directory the plugin may use
+          to store any temporary data required by the plugin; this directory
+          is unique for each repository and plugin combination
     @type working_dir: str
     """
 
-    def __init__(self, id, display_name=None, description=None, notes=None):
+    def __init__(self, id, display_name=None, description=None, notes=None, working_dir=None):
         self.id = id
         self.display_name = display_name
         self.description = description
         self.notes = notes
-
-        self.working_dir = None
+        self.working_dir = working_dir
 
     def __str__(self):
         return 'Repository [%s]' % self.id
@@ -66,7 +65,57 @@ class RelatedRepository(Repository):
         Repository.__init__(self, id, display_name, description, notes)
         self.plugin_configs = plugin_configs
 
-class Unit:
+class RepositoryGroup(object):
+    """
+    Contains repository group data and any additional data relevant for the
+    plugin to function.
+
+    @ivar id: programmatic ID for the repository group
+    @type id: str
+
+    @ivar display_name: user-friendly name describing the repository group
+    @type display_name: str
+
+    @ivar description: user-friendly description of the repository group
+    @type description: str
+
+    @ivar notes: arbitrary key-value pairs set and used by users to
+                 programmatically describe the repository
+    @type notes: dict
+
+    @ivar working_dir: local (to the Pulp server) directory the plugin may use
+          to store any temporary data required by the plugin; this directory
+          is unique for each repository and plugin combination
+    @type working_dir: str
+    """
+
+    def __init__(self, id, display_name, description, notes, working_dir=None):
+        self.id = id
+        self.display_name = display_name
+        self.description = description
+        self.notes = notes
+        self.working_dir = working_dir
+
+    def __str__(self):
+        return 'Repository Group [%s]' % self.id
+
+class RelatedRepositoryGroup(RepositoryGroup):
+    """
+    When validating a plugin configuration, instances of this class will
+    describe other repository groups that share the same plugin type as the
+    plugin being configured. This class will describe the basic repository
+    group metadata for each group and information on that repository group's
+    configuration for the plugin. If the group has multiple associations to
+    the given plugin type, a list of configurations will be returned.
+    """
+
+    def __init__(self, id, plugin_configs, display_name, description, notes, working_dir=None):
+        super(RelatedRepositoryGroup, self).__init__(id, display_name,
+                                                     description, notes,
+                                                     working_dir)
+        self.plugin_configs = plugin_configs
+
+class Unit(object):
     """
     Contains information related to a single content unit. The unit may or
     may not exist in Pulp; this is meant simply as a way of linking together
@@ -97,6 +146,9 @@ class Unit:
 
         self.id = None
 
+    def __eq__(self, other):
+        return self.unit_key == other.unit_key
+
     def __str__(self):
         return 'Unit [key=%s] [type=%s] [id=%s]' % (self.unit_key, self.type_id, self.id)
 
@@ -114,7 +166,7 @@ class AssociatedUnit(Unit):
         self.owner_type = owner_type
         self.owner_id = owner_id
 
-class SyncReport:
+class SyncReport(object):
     """
     Returned to the Pulp server at the end of a sync call. This is used by the
     plugin to describe what took place during the sync.
@@ -149,7 +201,7 @@ class SyncReport:
         self.summary = summary
         self.details = details
 
-class PublishReport:
+class PublishReport(object):
     """
     Returned to the Pulp server at the end of a publish call. This is used by the
     plugin to decrive what took place during the publish run.
@@ -169,5 +221,48 @@ class PublishReport:
 
     def __init__(self, success_flag, summary, details):
         self.success_flag = success_flag
+        self.summary = summary
+        self.details = details
+
+class Consumer:
+    """
+    A profiled consumer.
+
+    @ivar id: The consumer ID.
+    @type id: str
+
+    @param profiles: A dictionary of profiles keyed by content type.
+    @type profiles: dict
+    """
+
+    def __init__(self, id, profiles):
+        self.id = id
+        self.profiles = profiles
+
+class ApplicabilityReport:
+    """
+    Returned to the pulp server at the end of a unit_applicable call.
+    This is returned to indicate the applicability of a content
+    unit along with summary and details.
+
+    @ivar unit: A content unit: {type_id:<str>, unit_key:<dict>}
+    @type unit: dict
+
+    @ivar applicable: Flag indicates whether the unit is
+                      applicable to the consumer.
+    @type applicable: bool
+
+    @ivar summary: arbitrary value that will be returned by default as the log
+                   for the call (should be short)
+    @type summary: just about any serializable object (likely str or dict)
+
+    @ivar details: potentially longer log that will have to be specifically
+                   retrieved through the Pulp REST APIs
+    @type details: just about any serializable object (likley str or dict)
+    """
+
+    def __init__(self, unit, applicable, summary, details=None):
+        self.unit = unit
+        self.applicable = applicable
         self.summary = summary
         self.details = details
