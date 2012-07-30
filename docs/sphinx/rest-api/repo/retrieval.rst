@@ -11,9 +11,13 @@ and :term:`distributors <distributor>` associated with it.
 | :method:`get`
 | :path:`/v2/repositories/<repo_id>/`
 | :permission:`read`
-| :param_list:`get` include the key "details" with any value that evaluates to
-  True to have importers and distributors included in the results. alternatively
-  use the keys "importers" or "distributors" to get one or the other.
+
+| :param_list:`get`
+
+* :param:`?details,bool,shortcut for including both distributors and importers`
+* :param:`?importers,bool,include the "importers" attribute on each repository`
+* :param:`?distributors,bool,include the "distributors" attribute on each repository`
+
 | :response_list:`_`
 
 * :response_code:`200,if the repository exists`
@@ -65,7 +69,7 @@ and :term:`distributors <distributor>` associated with it.
  }
 
 
-Retrieve all Repositories
+Retrieve All Repositories
 -------------------------
 
 Returns information on all repositories in the Pulp server. It is worth noting
@@ -75,8 +79,12 @@ where there are no repositories.
 | :method:`get`
 | :path:`/v2/repositories/`
 | :permission:`read`
-| :param_list:`get` include the key "details" with any value that evaluates to
-  True to have importers and distributors included in the results.
+| :param_list:`get`
+
+* :param:`?details,bool,shortcut for including both distributors and importers`
+* :param:`?importers,bool,include the "importers" attribute on each repository`
+* :param:`?distributors,bool,include the "distributors" attribute on each repository`
+
 | :response_list:`_`
 
 * :response_code:`200,containing the list of repositories`
@@ -128,10 +136,10 @@ where there are no repositories.
   }
  ]
 
-Advanced Search For Repositories
+Advanced Search for Repositories
 --------------------------------
 
-Please see :ref:`search-api` for more details on how to perform these searches.
+Please see :ref:`search_api` for more details on how to perform these searches.
 
 Returns information on repositories in the Pulp server that match your search
 parameters. It is worth noting that this call will never return a 404; an empty
@@ -140,7 +148,11 @@ list is returned in the case where there are no repositories.
 | :method:`post`
 | :path:`/v2/repositories/search/`
 | :permission:`read`
-| :param_list:`post` include the key "criteria" whose value is a mapping structure as defined in :ref:`search_criteria`.
+| :param_list:`post`
+
+* :param:`?importers,bool,include the "importers" attribute on each repository`
+* :param:`?distributors,bool,include the "distributors" attribute on each repository`
+
 | :response_list:`_`
 
 * :response_code:`200,containing the list of repositories`
@@ -206,6 +218,11 @@ filter expressions may not be serializable as query parameters.
  object as defined in :ref:`search_criteria`. The exception is the 'fields'
  parameter, which should be specified in singular form as follows:
  For example: /v2/repositories/search/?field=id&field=display_name&limit=20'
+
+* :param:`?details,bool,shortcut for including both distributors and importers`
+* :param:`?importers,bool,include the "importers" attribute on each repository`
+* :param:`?distributors,bool,include the "distributors" attribute on each repository`
+
 | :response_list:`_`
 
 * :response_code:`200,containing the list of repositories`

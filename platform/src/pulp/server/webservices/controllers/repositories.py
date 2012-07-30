@@ -26,7 +26,9 @@ import pulp.server.managers.factory as manager_factory
 from pulp.common.tags import action_tag, resource_tag
 from pulp.server import config as pulp_config
 from pulp.server.auth.authorization import CREATE, READ, DELETE, EXECUTE, UPDATE
-from pulp.server.db.model.repository import Repo
+from pulp.server.auth.principal import get_principal
+from pulp.server.db.model.criteria import UnitAssociationCriteria
+from pulp.server.db.model.repository import RepoContentUnit
 from pulp.server.dispatch import constants as dispatch_constants
 from pulp.server.dispatch import factory as dispatch_factory
 from pulp.server.dispatch.call import CallRequest
@@ -35,7 +37,6 @@ from pulp.server.webservices import serialization
 from pulp.server.webservices.controllers.base import JSONController
 from pulp.server.webservices.controllers.decorators import auth_required
 from pulp.server.webservices.controllers.search import SearchController
-from pulp.server.webservices.serialization.unit_criteria import unit_association_criteria
 
 # -- constants ----------------------------------------------------------------
 
@@ -117,7 +118,7 @@ class RepoCollection(JSONController):
                 'distributors', manager_factory.repo_distributor_manager(), repos)
 
         for repo in repos:
-            repo.update(serialization.link.child_link_obj(repo['id']))
+            repo.update(serialization.link.search_safe_link_obj(repo['id']))
 
         return repos
 
@@ -558,8 +559,6 @@ class RepoDistributors(JSONController):
     @auth_required(CREATE)
     def POST(self, repo_id):
 
-        # Distributor ID is optional and thus isn't part of the URL
-
         # Params (validation will occur in the manager)
         params = self.params()
         distributor_type = params.get('distributor_type_id', None)
@@ -570,22 +569,19 @@ class RepoDistributors(JSONController):
         # Update the repo
         distributor_manager = manager_factory.repo_distributor_manager()
 
-        # Note: The manager will automatically replace a distributor with the
-        # same ID, so there is no need to return a 409.
-
         resources = {dispatch_constants.RESOURCE_REPOSITORY_TYPE: {repo_id: dispatch_constants.RESOURCE_UPDATE_OPERATION}}
         weight = pulp_config.config.getint('tasks', 'create_weight')
         tags = [resource_tag(dispatch_constants.RESOURCE_REPOSITORY_TYPE, repo_id),
                 action_tag('add_distributor')]
         if distributor_id is not None:
             resources.update({dispatch_constants.RESOURCE_REPOSITORY_DISTRIBUTOR_TYPE: {distributor_id: dispatch_constants.RESOURCE_CREATE_OPERATION}})
-            tags.append(distributor_id)
+            tags.append(resource_tag(dispatch_constants.RESOURCE_REPOSITORY_DISTRIBUTOR_TYPE, distributor_id))
         call_request = CallRequest(distributor_manager.add_distributor,
                                    [repo_id, distributor_type, distributor_config, auto_publish, distributor_id],
                                    resources=resources,
                                    weight=weight,
                                    tags=tags)
-        return execution.execute_sync_created(self, call_request, distributor_id)
+        return execution.execute_created(self, call_request, distributor_id)
 
 
 class RepoDistributor(JSONController):
@@ -858,8 +854,6 @@ class RepoPublish(JSONController):
     @auth_required(EXECUTE)
     def POST(self, repo_id):
 
-        # TODO: Add timeout support
-
         # Params
         params = self.params()
         distributor_id = params.get('id', None)
@@ -898,7 +892,7 @@ class RepoAssociate(JSONController):
         criteria = params.get('criteria', None)
         if criteria is not None:
             try:
-                criteria = unit_association_criteria(criteria)
+                criteria = UnitAssociationCriteria.from_client_input(criteria)
             except:
                 _LOG.exception('Error parsing association criteria [%s]' % criteria)
                 raise exceptions.PulpDataException(), None, sys.exc_info()[2]
@@ -916,6 +910,37 @@ class RepoAssociate(JSONController):
                                    tags=tags,
                                    archive=True)
         return execution.execute_async(self, call_request)
+
+
+class RepoUnassociate(JSONController):
+
+    # Scope: Action
+    # POST: Unassociate units from a repository
+
+    @auth_required(UPDATE)
+    def POST(self, repo_id):
+
+        params = self.params()
+        criteria = params.get('criteria', None)
+
+        if criteria is not None:
+            try:
+                criteria = UnitAssociationCriteria.from_client_input(criteria)
+            except:
+                _LOG.exception('Error parsing unassociation criteria [%s]' % criteria)
+                raise exceptions.PulpDataException(), None, sys.exc_info()[2]
+
+        association_manager = manager_factory.repo_unit_association_manager()
+        tags = [resource_tag(dispatch_constants.RESOURCE_REPOSITORY_TYPE, repo_id),
+                action_tag('unassociate')]
+
+        call_request = CallRequest(association_manager.unassociate_by_criteria,
+                                   [repo_id, criteria, RepoContentUnit.OWNER_TYPE_USER, get_principal()['login']],
+                                   tags=tags)
+        call_request.updates_resource(dispatch_constants.RESOURCE_REPOSITORY_TYPE, repo_id)
+
+        return execution.execute_async(self, call_request)
+
 
 class RepoImportUpload(JSONController):
 
@@ -955,7 +980,7 @@ class RepoResolveDependencies(JSONController):
         timeout = params.get('timeout', 60)
 
         try:
-            criteria = unit_association_criteria(query)
+            criteria = UnitAssociationCriteria.from_client_input(query)
         except:
             _LOG.exception('Error parsing association criteria [%s]' % query)
             raise exceptions.PulpDataException(), None, sys.exc_info()[2]
@@ -997,7 +1022,7 @@ class RepoUnitAdvancedSearch(JSONController):
             raise exceptions.MissingValue(['query'])
 
         try:
-            criteria = unit_association_criteria(query)
+            criteria = UnitAssociationCriteria.from_client_input(query)
         except:
             _LOG.exception('Error parsing association criteria [%s]' % query)
             raise exceptions.PulpDataException(), None, sys.exc_info()[2]
@@ -1036,6 +1061,7 @@ urls = (
     '/([^/]+)/actions/sync/$', 'RepoSync', # resource action
     '/([^/]+)/actions/publish/$', 'RepoPublish', # resource action
     '/([^/]+)/actions/associate/$', 'RepoAssociate', # resource action
+    '/([^/]+)/actions/unassociate/$', 'RepoUnassociate', # resource action
     '/([^/]+)/actions/import_upload/$', 'RepoImportUpload', # resource action
     '/([^/]+)/actions/resolve_dependencies/$', 'RepoResolveDependencies', # resource action
 

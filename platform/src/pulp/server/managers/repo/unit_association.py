@@ -22,16 +22,16 @@ import sys
 
 import pulp.plugins.conduits._common as conduit_common_utils
 from pulp.plugins.conduits.unit_import import ImportUnitConduit
-import pulp.plugins.loader as plugin_loader
+from pulp.plugins.loader import api as plugin_api
 from pulp.plugins.config import PluginCallConfiguration
 import pulp.plugins.types.database as types_db
+from pulp.server.db.model.criteria import UnitAssociationCriteria
 from pulp.server.db.model.repository import RepoContentUnit
 import pulp.server.managers.factory as manager_factory
 import pulp.server.exceptions as exceptions
 import pulp.server.managers.repo._common as common_utils
 
 # -- constants ----------------------------------------------------------------
-from pulp.server.managers.repo.unit_association_query import Criteria
 
 _LOG = logging.getLogger(__name__)
 
@@ -226,7 +226,7 @@ class RepoUnitAssociationManager(object):
 
         # The docs are incorrect on the list_importer_types call; it actually
         # returns a dict with the types under key "types" for some reason.
-        supported_type_ids = plugin_loader.list_importer_types(dest_repo_importer['importer_type_id'])['types']
+        supported_type_ids = plugin_api.list_importer_types(dest_repo_importer['importer_type_id'])['types']
 
         # If criteria is specified, retrieve the list of units now
         associate_us = None
@@ -256,7 +256,7 @@ class RepoUnitAssociationManager(object):
 
             for type_id in unit_ids_by_type.keys():
                 spec = {'unit_id' : {'$in' : unit_ids_by_type[type_id]}}
-                criteria = Criteria(association_filters=spec)
+                criteria = UnitAssociationCriteria(association_filters=spec)
                 dep_associations = association_query_manager.get_units_by_type(source_repo_id, type_id, criteria)
 
                 associate_us += dep_associations
@@ -302,7 +302,7 @@ class RepoUnitAssociationManager(object):
         transfer_source_repo.working_dir = common_utils.importer_working_dir(source_repo_importer['importer_type_id'], source_repo['id'], mkdir=True)
 
         # Invoke the importer
-        importer_instance, plugin_config = plugin_loader.get_importer_by_id(dest_repo_importer['importer_type_id'])
+        importer_instance, plugin_config = plugin_api.get_importer_by_id(dest_repo_importer['importer_type_id'])
 
         call_config = PluginCallConfiguration(plugin_config, dest_repo_importer['config'])
         conduit = ImportUnitConduit(source_repo_id, dest_repo_id, source_repo_importer['id'], dest_repo_importer['id'])
@@ -353,9 +353,6 @@ class RepoUnitAssociationManager(object):
                 'owner_id' : owner_id,
                 }
 
-        # TODO: Contact the importer to tell it about the removal
-        # It's the remove_units call in the Importer API
-
         unit_coll = RepoContentUnit.get_collection()
         unit_coll.remove(spec, safe=True)
 
@@ -364,6 +361,20 @@ class RepoUnitAssociationManager(object):
                 repo_id, unit_id, unit_type_id):
             manager = manager_factory.repo_manager()
             manager.update_unit_count(repo_id, -1)
+
+        try:
+            repo_query_manager = manager_factory.repo_query_manager()
+            repo = repo_query_manager.get_repository(repo_id)
+
+            content_query_manager = manager_factory.content_query_manager()
+            content_unit = content_query_manager.get_content_unit_by_id(unit_type_id, unit_id)
+
+            importer_manager = manager_factory.repo_importer_manager()
+            importer = importer_manager.get_importer(repo_id)
+
+            importer.remove_units(repo, [content_unit])
+        except:
+            _LOG.exception('Exception informing importer for [%s] of unassociation' % repo_id)
 
     def unassociate_all_by_ids(self, repo_id, unit_type_id, unit_id_list, owner_type, owner_id):
         """
@@ -395,9 +406,6 @@ class RepoUnitAssociationManager(object):
                 'owner_id' : owner_id,
                 }
 
-        # TODO: Contact the importer to tell it about the removal
-        # It's the remove_units call in the Importer API
-
         unit_coll = RepoContentUnit.get_collection()
         unit_coll.remove(spec, safe=True)
 
@@ -408,6 +416,72 @@ class RepoUnitAssociationManager(object):
         if unique_count:
             manager_factory.repo_manager().update_unit_count(
                 repo_id, -unique_count)
+
+        try:
+            repo_query_manager = manager_factory.repo_query_manager()
+            repo = repo_query_manager.get_repository(repo_id)
+
+            content_query_manager = manager_factory.content_query_manager()
+            content_units = content_query_manager.get_multiple_units_by_ids(unit_type_id, unit_id_list)
+
+            importer_manager = manager_factory.repo_importer_manager()
+            importer = importer_manager.get_importer(repo_id)
+
+            importer.remove_units(repo, content_units)
+        except:
+            _LOG.exception('Exception informing importer for [%s] of unassociation' % repo_id)
+
+    def unassociate_by_criteria(self, repo_id, criteria, owner_type, owner_id):
+        """
+        Unassociate units that are matched by the given criteria.
+        @param repo_id: identifies the repo
+        @type repo_id: str
+        @param criteria:
+        @param owner_type: category of the caller who created the association
+        @type owner_type: str
+        @param owner_id: identifies the call who created the association
+        @type owner_id: str
+        """
+        association_query_manager = manager_factory.repo_unit_association_query_manager()
+        unassociate_units = association_query_manager.get_units(repo_id, criteria=criteria)
+
+        if len(unassociate_units) is 0:
+            return
+
+        unit_map = {} # maps unit_type_id to a list of unit_ids
+
+        for unit in unassociate_units:
+            id_list = unit_map.setdefault(unit['unit_type_id'], [])
+            id_list.append(unit['unit_id'])
+
+        collection = RepoContentUnit.get_collection()
+        repo_manager = manager_factory.repo_manager()
+
+        for unit_type_id, unit_ids in unit_map.items():
+            spec = {'repo_id': repo_id,
+                    'unit_type_id': unit_type_id,
+                    'unit_id': {'$in': unit_ids},
+                    'owner_type': owner_type,
+                    'owner_id': owner_id}
+            collection.remove(spec, safe=True)
+
+            unique_count = sum(1 for unit_id in unit_ids
+                               if not self.association_exists(repo_id, unit_id, unit_type_id))
+            if not unique_count:
+                continue
+
+            repo_manager.update_unit_count(repo_id, -unique_count)
+
+        try:
+            repo_query_manager = manager_factory.repo_query_manager()
+            repo = repo_query_manager.get_repository(repo_id)
+
+            importer_manager = manager_factory.repo_importer_manager()
+            importer = importer_manager.get_importer(repo_id)
+
+            importer.remove_units(repo, unassociate_units)
+        except:
+            _LOG.exception('Exception informing importer for [%s] of unassociation' % repo_id)
 
     @staticmethod
     def association_exists(repo_id, unit_id, unit_type_id):

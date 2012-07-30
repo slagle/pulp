@@ -27,8 +27,9 @@ import sys
 
 # Pulp
 from pulp.common import dateutils
-from pulp.server import constants as pulp_constants
-from pulp.plugins import loader as plugin_loader
+from pulp.server import config as pulp_config
+from pulp.plugins.loader import api as plugin_api
+from pulp.plugins.loader import exceptions as plugin_exceptions
 from pulp.plugins.conduits.repo_sync import RepoSyncConduit
 from pulp.plugins.config import PluginCallConfiguration
 from pulp.plugins.model import SyncReport
@@ -39,8 +40,6 @@ from pulp.server.managers.repo import _common as common_utils
 
 
 # -- constants ----------------------------------------------------------------
-
-REPO_STORAGE_DIR = os.path.join(pulp_constants.LOCAL_STORAGE, 'repos')
 
 _LOG = logging.getLogger(__name__)
 
@@ -91,8 +90,8 @@ class RepoSyncManager(object):
         repo_importer = repo_importers[0]
 
         try:
-            importer_instance, plugin_config = plugin_loader.get_importer_by_id(repo_importer['importer_type_id'])
-        except plugin_loader.PluginNotFound:
+            importer_instance, plugin_config = plugin_api.get_importer_by_id(repo_importer['importer_type_id'])
+        except plugin_exceptions.PluginNotFound:
             raise MissingResource(repo_id), None, sys.exc_info()[2]
 
         # Assemble the data needed for the sync
@@ -248,3 +247,8 @@ def _now_timestamp():
     now = datetime.datetime.now(dateutils.local_tz())
     now_in_iso_format = dateutils.format_iso8601_datetime(now)
     return now_in_iso_format
+
+def _repo_storage_dir():
+    storage_dir = pulp_config.config.get('server', 'storage_dir')
+    dir = os.path.join(storage_dir, 'repos')
+    return dir

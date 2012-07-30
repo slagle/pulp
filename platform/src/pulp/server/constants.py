@@ -17,6 +17,3 @@ data_dir = os.environ["PULP_TOP_DIR"]
 
 LOCAL_STORAGE = os.path.join(data_dir, "var/lib/pulp/")
 
-SERVER_SCHEME="https://"
-
-CACHE_DIR = os.path.join(data_dir, "var/lib/pulp/cache/")

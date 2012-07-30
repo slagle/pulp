@@ -59,7 +59,6 @@ class UsersCollection(JSONController):
         password = user_data.get('password', None)
         name = user_data.get('name', None)
         roles = user_data.get('roles', None)
-        _LOG.info("$$$$$$$$$$$ %s : %s" % (login, name))
 
         # Creation
         manager = managers.user_manager()
@@ -72,7 +71,8 @@ class UsersCollection(JSONController):
                                    args,
                                    resources=resources,
                                    weight=weight,
-                                   tags=tags)
+                                   tags=tags,
+                                   obfuscate_args=True)
         return execution.execute_sync_created(self, call_request, login)
 
 

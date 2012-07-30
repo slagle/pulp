@@ -10,17 +10,3 @@
 # NON-INFRINGEMENT, or FITNESS FOR A PARTICULAR PURPOSE. You should
 # have received a copy of GPLv2 along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
-
-"""
-Module for profile serialization.
-"""
-
-import link
-
-def serialize(profile):
-    serialized = dict(profile)
-    href = link.child_link_obj(
-        profile['consumer_id'],
-        profile['content_type'])
-    serialized.update(href)
-    return serialized

@@ -25,7 +25,7 @@ def initialize(context):
 
     # Common Options
     d = 'uniquely identifies the consumer; only alphanumeric, -, and _ allowed'
-    id_option = PulpCliOption('--id', _(d), required=True)
+    id_option = PulpCliOption('--consumer-id', _(d), required=True)
 
     d = 'user-readable display name for the consumer'
     name_option = PulpCliOption('--display-name', _(d), required=False)
@@ -97,7 +97,7 @@ class RegisterCommand(PulpCliCommand):
     def register(self, **kwargs):
 
         # Get consumer id
-        id = kwargs['id']
+        id = kwargs['consumer-id']
 
         # Check if this consumer is already registered
         existing_consumer = load_consumer_id(self.context)
@@ -206,8 +206,7 @@ class BindCommand(PulpCliCommand):
         self.prompt = context.prompt
 
         self.add_option(PulpCliOption('--repo-id', 'repository id', required=True))
-        # Temporarily disabling until I have time to make a proper RPM consumer extension
-        # self.add_option(PulpCliOption('--distributor-id', 'distributor id', required=True))
+        self.add_option(PulpCliOption('--distributor-id', 'distributor id', required=True))
 
     def bind(self, **kwargs):
         consumer_id = load_consumer_id(self.context)
@@ -215,9 +214,7 @@ class BindCommand(PulpCliCommand):
             self.prompt.render_failure_message("This consumer is not registered to the Pulp server.")
             return
         repo_id = kwargs['repo-id']
-        # Temporarily disabling until I have time to make a proper RPM consumer extension
-        # distributor_id = kwargs['distributor-id']
-        distributor_id = 'yum_distributor'
+        distributor_id = kwargs['distributor-id']
         try:
             self.context.server.bind.bind(consumer_id, repo_id, distributor_id)
             self.prompt.render_success_message('Consumer [%s] successfully bound to repository distributor [%s : %s]' % (consumer_id, repo_id, distributor_id))

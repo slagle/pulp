@@ -27,17 +27,16 @@ import base
 import dummy_plugins
 
 from pulp.common import dateutils
-from pulp.plugins import loader as plugin_loader
+from pulp.plugins.loader import api as plugin_api
 from pulp.server.db.connection import PulpCollection
 from pulp.server.db.model import criteria
+from pulp.server.db.model.criteria import UnitAssociationCriteria
 from pulp.server.db.model.dispatch import ScheduledCall
 from pulp.server.db.model.repository import (
     Repo, RepoImporter, RepoDistributor, RepoPublishResult, RepoSyncResult)
 from pulp.server.managers import factory as manager_factory
 from pulp.server.managers.repo.distributor import RepoDistributorManager
 from pulp.server.managers.repo.importer import RepoImporterManager
-from pulp.server.managers.repo.unit_association_query import Criteria
-import pulp.server.webservices.serialization.unit_criteria as repo_query_utils
 from pulp.server.webservices.controllers import repositories
 
 class RepoControllersTests(base.PulpWebserviceTests):
@@ -214,26 +213,26 @@ class RepoCollectionTests(RepoControllersTests):
         self.assertEqual(len(ret[0]['importers']), 1)
         self.assertEqual(ret[0]['importers'][0]['id'], IMPORTERS[0]['id'])
 
-    @mock.patch('pulp.server.webservices.serialization.link.child_link_obj')
-    def test_process_repos_calls_serialize(self, mock_child_link_obj):
-        mock_child_link_obj.return_value = {}
+    @mock.patch('pulp.server.webservices.serialization.link.search_safe_link_obj')
+    def test_process_repos_calls_serialize(self, mock_link_obj):
+        mock_link_obj.return_value = {}
         REPOS = [{'id' : 'dummy-1', 'display_name' : 'dummy'}]
         repositories.RepoCollection._process_repos(REPOS)
-        mock_child_link_obj.assert_called_once_with(REPOS[0]['id'])
+        mock_link_obj.assert_called_once_with(REPOS[0]['id'])
 
-    @mock.patch('pulp.server.webservices.serialization.link.child_link_obj',
+    @mock.patch('pulp.server.webservices.serialization.link.search_safe_link_obj',
                 return_value={})
-    def test_process_repos_without_details(self, mock_child_link_obj):
+    def test_process_repos_without_details(self, mock_link_obj):
         REPOS = [{'id' : 'dummy-1', 'display_name' : 'dummy'}]
         ret = repositories.RepoCollection._process_repos(REPOS)
         self.assertTrue('importers' not in ret[0])
         self.assertTrue('distributors' not in ret[0])
 
-    @mock.patch('pulp.server.webservices.serialization.link.child_link_obj',
+    @mock.patch('pulp.server.webservices.serialization.link.search_safe_link_obj',
         return_value={})
     @mock.patch.object(repositories, '_merge_related_objects')
     def test_process_repos_with_importers(self, mock_merge_related_objects,
-                                          mock_child_link_obj):
+                                          mock_link_obj):
         REPOS = [{'id' : 'dummy-1', 'display_name' : 'dummy'}]
         repositories.RepoCollection._process_repos(REPOS, importers=True)
         self.assertEqual(mock_merge_related_objects.call_count, 1)
@@ -241,11 +240,11 @@ class RepoCollectionTests(RepoControllersTests):
         self.assertTrue(isinstance(mock_merge_related_objects.call_args[0][1],
             RepoImporterManager))
 
-    @mock.patch('pulp.server.webservices.serialization.link.child_link_obj',
+    @mock.patch('pulp.server.webservices.serialization.link.search_safe_link_obj',
         return_value={})
     @mock.patch.object(repositories, '_merge_related_objects')
     def test_process_repos_with_distributors(self, mock_merge_related_objects,
-                                          mock_child_link_obj):
+                                          mock_link_obj):
         REPOS = [{'id' : 'dummy-1', 'display_name' : 'dummy'}]
         repositories.RepoCollection._process_repos(REPOS, distributors=True)
         self.assertEqual(mock_merge_related_objects.call_count, 1)
@@ -478,7 +477,7 @@ class RepoPluginsTests(RepoControllersTests):
     def setUp(self):
         super(RepoPluginsTests, self).setUp()
 
-        plugin_loader._create_loader()
+        plugin_api._create_manager()
         dummy_plugins.install()
 
         self.importer_manager = manager_factory.repo_importer_manager()
@@ -1163,12 +1162,12 @@ class RepoUnitAssociationQueryTests(RepoControllersTests):
         self.assertEqual(1, self.association_query_mock.get_units_by_type.call_count)
 
         criteria = self.association_query_mock.get_units_by_type.call_args[1]['criteria']
-        self.assertTrue(isinstance(criteria, Criteria))
+        self.assertTrue(isinstance(criteria, UnitAssociationCriteria))
         self.assertEqual(query['type_ids'], criteria.type_ids)
         self.assertEqual(query['filters']['association'], criteria.association_filters)
         self.assertEqual(query['filters']['unit'], criteria.unit_filters)
-        self.assertEqual([('created', Criteria.SORT_DESCENDING), ('updated', Criteria.SORT_ASCENDING)], criteria.association_sort)
-        self.assertEqual([('name', Criteria.SORT_ASCENDING), ('version', Criteria.SORT_DESCENDING)], criteria.unit_sort)
+        self.assertEqual([('created', UnitAssociationCriteria.SORT_DESCENDING), ('updated', UnitAssociationCriteria.SORT_ASCENDING)], criteria.association_sort)
+        self.assertEqual([('name', UnitAssociationCriteria.SORT_ASCENDING), ('version', UnitAssociationCriteria.SORT_DESCENDING)], criteria.unit_sort)
         self.assertEqual(int(query['limit']), criteria.limit)
         self.assertEqual(int(query['skip']), criteria.skip)
         self.assertEqual(query['fields']['unit'], criteria.unit_fields)
@@ -1193,7 +1192,7 @@ class RepoUnitAssociationQueryTests(RepoControllersTests):
 
         self.assertEqual(0, self.association_query_mock.get_units_by_type.call_count)
         self.assertEqual(1, self.association_query_mock.get_units_across_types.call_count)
-        self.assertTrue(isinstance(self.association_query_mock.get_units_across_types.call_args[1]['criteria'], Criteria))
+        self.assertTrue(isinstance(self.association_query_mock.get_units_across_types.call_args[1]['criteria'], UnitAssociationCriteria))
 
     def test_post_missing_query(self):
         # Test
@@ -1505,7 +1504,7 @@ class UnitCriteriaTests(unittest.TestCase):
         }
 
         # Test
-        criteria = repo_query_utils.unit_association_criteria(query)
+        criteria = UnitAssociationCriteria.from_client_input(query)
 
         # Verify
         self.assertEqual(criteria.type_ids, ['rpm'])
