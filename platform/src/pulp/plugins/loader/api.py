@@ -34,7 +34,9 @@ _MANAGER = None
 
 # plugin locations
 
-_PLUGINS_ROOT = '/usr/lib/pulp/plugins'
+pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
+
+_PLUGINS_ROOT = os.path.join(pulp_top_dir, 'usr/lib/pulp/plugins')
 _DISTRIBUTORS_DIR = _PLUGINS_ROOT + '/distributors'
 _IMPORTERS_DIR = _PLUGINS_ROOT + '/importers'
 _GROUP_DISTRIBUTORS_DIR = _PLUGINS_ROOT + '/group_distributors'
