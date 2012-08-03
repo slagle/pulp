@@ -27,15 +27,18 @@ from pulp_rpm.yum_plugin import comps_util
 _LOG = util.getLogger(__name__)
 _ = gettext.gettext
 
-REQUIRED_CONFIG_KEYS = ["relative_url", "http", "https"]
-OPTIONAL_CONFIG_KEYS = ["protected", "auth_cert", "auth_ca",
-                        "https_ca", "https_publish_dir", "http_publish_dir"]
+REQUIRED_CONFIG_KEYS = ["http", "https"]
+OPTIONAL_CONFIG_KEYS = ["generate_metadata", "https_publish_dir","http_publish_dir", "start_date", "end_date"]
 
 HTTP_PUBLISH_DIR="/var/lib/pulp/published/http/isos"
+HTTPS_PUBLISH_DIR="/var/lib/pulp/published/https/isos"
 
 ###
 # Config Options Explained
 ###
+# http                  - True/False:  Publish through http
+# https                 - True/False:  Publish through https
+# https_ca              - CA to verify https communication
 # generate_metadata     - True will run createrepo
 # start_date            - errata start date format eg: "2009-03-30 00:00:00"
 # end_date              - errata end date format eg: "2009-03-30 00:00:00"
@@ -49,13 +52,12 @@ HTTP_PUBLISH_DIR="/var/lib/pulp/published/http/isos"
 # - implement ability to skip content types from exports
 # - ability to cancel exports
 # - iso naming is standardized; provide optional override
-# - start/end dates are date strings same format as in updateinfo,
-#   should we consider converting them to iso standard when storing in db and converting them back?
 
 class ISODistributor(Distributor):
 
     def __init__(self):
         super(ISODistributor, self).__init__()
+        self.canceled = False
 
     @classmethod
     def metadata(cls):
@@ -83,6 +85,18 @@ class ISODistributor(Distributor):
                 msg = _("Missing required configuration key: %(key)s" % {"key":key})
                 _LOG.error(msg)
                 return False, msg
+            if key == 'http':
+                config_http = config.get('http')
+                if config_http is not None and not isinstance(config_http, bool):
+                    msg = _("http should be a boolean; got %s instead" % config_http)
+                    _LOG.error(msg)
+                    return False, msg
+            if key == 'https':
+                config_https = config.get('https')
+                if config_https is not None and not isinstance(config_https, bool):
+                    msg = _("https should be a boolean; got %s instead" % config_https)
+                    _LOG.error(msg)
+                    return False, msg
         for key in config.keys():
             if key not in REQUIRED_CONFIG_KEYS and key not in OPTIONAL_CONFIG_KEYS:
                 msg = _("Configuration key '%(key)s' is not supported" % {"key":key})
@@ -100,6 +114,20 @@ class ISODistributor(Distributor):
                     msg = _("skip should be a dictionary; got %s instead" % metadata_types)
                     _LOG.error(msg)
                     return False, msg
+            if key == 'https_ca':
+                https_ca = config.get('https_ca').encode('utf-8')
+                if https_ca is not None and not util.validate_cert(https_ca):
+                    msg = _("https_ca is not a valid certificate")
+                    _LOG.error(msg)
+                    return False, msg
+        publish_dir = config.get("https_publish_dir")
+        if publish_dir:
+            if not os.path.exists(publish_dir) or not os.path.isdir(publish_dir):
+                msg = _("Value for 'https_publish_dir' is not an existing directory: %(publish_dir)s" % {"publish_dir":publish_dir})
+                return False, msg
+            if not os.access(publish_dir, os.R_OK) or not os.access(publish_dir, os.W_OK):
+                msg = _("Unable to read & write to specified 'https_publish_dir': %(publish_dir)s" % {"publish_dir":publish_dir})
+                return False, msg
         publish_dir = config.get("http_publish_dir")
         if publish_dir:
             if not os.path.exists(publish_dir) or not os.path.isdir(publish_dir):
@@ -155,6 +183,9 @@ class ISODistributor(Distributor):
 
         self.repo_working_dir = repo_working_dir = repo.working_dir
 
+        if self.canceled:
+            return publish_conduit.build_failure_report(summary, details)
+
         date_filter = self.create_date_range_filter(config)
         if date_filter:
             # export errata by date and associated rpm units
@@ -166,6 +197,8 @@ class ISODistributor(Distributor):
             rpm_units = self._get_errata_rpms(errata_units, rpm_units)
             rpm_status, rpm_errors = self._export_rpms(rpm_units, repo_working_dir, progress_callback=progress_callback)
             progress_status["rpms"]["state"] = "FINISHED"
+            if self.canceled:
+                return publish_conduit.build_failure_report(summary, details)
             # generate metadata
             metadata_status, metadata_errors = metadata.generate_metadata(
                     repo, publish_conduit, config, progress_callback)
@@ -192,7 +225,8 @@ class ISODistributor(Distributor):
             existing_groups = filter(lambda u : u.type_id in [TYPE_ID_PKG_GROUP], existing_units)
             existing_cats = filter(lambda u : u.type_id in [TYPE_ID_PKG_CATEGORY], existing_units)
             groups_xml_path = comps_util.write_comps_xml(repo, existing_groups, existing_cats)
-
+            if self.canceled:
+                return publish_conduit.build_failure_report(summary, details)
             # generate metadata
             metadata_status, metadata_errors = metadata.generate_metadata(
                     repo, publish_conduit, config, progress_callback, groups_xml_path)
@@ -224,27 +258,65 @@ class ISODistributor(Distributor):
             summary["num_package_units_exported"] = len(rpm_units) - len(rpm_errors)
             summary["num_package_units_errors"] = len(rpm_errors)
             details["errors"] = rpm_errors + distro_errors + errata_errors
+        # build iso and publish via HTTPS
+        https_publish_dir = self.get_https_publish_iso_dir(config)
+        https_repo_publish_dir = os.path.join(https_publish_dir, repo.id).rstrip('/')
+        if config.get("https"):
+            # Publish for HTTPS
+            self.set_progress("publish_https", {"state" : "IN_PROGRESS"}, progress_callback)
+            try:
+                _LOG.info("HTTPS Publishing repo <%s> to <%s>" % (repo.id, https_repo_publish_dir))
+                isogen = GenerateIsos(repo_working_dir, https_repo_publish_dir, prefix=repo.id, progress=progress_status)
+                progress_status = isogen.run()
+                summary["https_publish_dir"] = https_repo_publish_dir
+                self.set_progress("publish_https", {"state" : "FINISHED"}, progress_callback)
+                progress_status["isos"]["state"] = "FINISHED"
+            except:
+                self.set_progress("publish_https", {"state" : "FAILED"}, progress_callback)
+        else:
+            self.set_progress("publish_https", {"state" : "SKIPPED"}, progress_callback)
+            if os.path.lexists(https_repo_publish_dir):
+                _LOG.debug("Removing link for %s since https is not set" % https_repo_publish_dir)
+                shutil.rmtree(https_repo_publish_dir)
+
+        # Handle publish link for HTTP
         # build iso and publish via HTTP
         http_publish_dir = self.get_http_publish_iso_dir(config)
         http_repo_publish_dir = os.path.join(http_publish_dir, repo.id).rstrip('/')
-        # Publish for HTTP
-        self.set_progress("publish_http", {"state" : "IN_PROGRESS"}, progress_callback)
-        try:
-            _LOG.info("HTTP Publishing repo <%s> to <%s>" % (repo.id, http_repo_publish_dir))
-            progress_status["isos"]["state"] = "IN_PROGRESS"
-            isogen = GenerateIsos(repo_working_dir, http_repo_publish_dir, prefix=repo.id, progress=progress_status)
-            progress_status = isogen.run()
-            progress_status["isos"]["state"] = "FINISHED"
-            summary["http_publish_dir"] = http_repo_publish_dir
-            self.set_progress("publish_http", {"state" : "FINISHED"}, progress_callback)
-        except:
-            self.set_progress("publish_http", {"state" : "FAILED"}, progress_callback)
+        if config.get("http"):
+            # Publish for HTTP
+            self.set_progress("publish_http", {"state" : "IN_PROGRESS"}, progress_callback)
+            try:
+                _LOG.info("HTTP Publishing repo <%s> to <%s>" % (repo.id, http_repo_publish_dir))
+                isogen = GenerateIsos(repo_working_dir, http_repo_publish_dir, prefix=repo.id, progress=progress_status)
+                progress_status = isogen.run()
+                summary["http_publish_dir"] = http_repo_publish_dir
+                self.set_progress("publish_http", {"state" : "FINISHED"}, progress_callback)
+            except:
+                self.set_progress("publish_http", {"state" : "FAILED"}, progress_callback)
+        else:
+            self.set_progress("publish_http", {"state" : "SKIPPED"}, progress_callback)
+            if os.path.lexists(http_repo_publish_dir):
+                _LOG.debug("Removing link for %s since http is not set" % http_repo_publish_dir)
+                shutil.rmtree(http_repo_publish_dir)
         details["errors"] += metadata_errors
         # metadata generate skipped vs run
         _LOG.info("Publish complete:  summary = <%s>, details = <%s>" % (summary, details))
+        # remove exported content from working dirctory
+        self.cleanup()
         if details["errors"]:
             return publish_conduit.build_failure_report(summary, details)
         return publish_conduit.build_success_report(summary, details)
+
+    def cleanup(self):
+        """
+        remove exported content from working dirctory
+        """
+        try:
+            shutil.rmtree(self.repo_working_dir)
+            _LOG.debug("Cleaned up repo working directory %s" % self.repo_working_dir)
+        except (IOError, OSError), e:
+            _LOG.error("unable to clean up working directory; Error: %s" % e)
 
     def get_http_publish_iso_dir(self, config=None):
         """
@@ -257,6 +329,18 @@ class ISODistributor(Distributor):
                 _LOG.info("Override HTTP publish directory from passed in config value to: %s" % (publish_dir))
                 return publish_dir
         return HTTP_PUBLISH_DIR
+
+    def get_https_publish_iso_dir(self, config=None):
+        """
+        @param config
+        @type pulp.server.content.plugins.config.PluginCallConfiguration
+        """
+        if config:
+            publish_dir = config.get("https_publish_dir")
+            if publish_dir:
+                _LOG.info("Override HTTPS publish directory from passed in config value to: %s" % (publish_dir))
+                return publish_dir
+        return HTTPS_PUBLISH_DIR
 
     def _export_rpms(self, rpm_units, symlink_dir, progress_callback=None):
         """
@@ -339,9 +423,13 @@ class ISODistributor(Distributor):
         errata_progress_status = self.init_progress()
         if not errata_units:
             return True, []
+        errata_progress_status["num_success"] = 0
+        errata_progress_status["items_left"] = len(errata_units)
+        errata_progress_status["items_total"] = len(errata_units)
         try:
             errata_progress_status['state'] = "IN_PROGRESS"
             self.set_progress("errata", errata_progress_status, progress_callback)
+
             updateinfo_path = updateinfo.updateinfo(errata_units, repo_working_dir)
             if updateinfo_path:
                 repodata_dir = os.path.join(repo_working_dir, "repodata")
@@ -350,15 +438,21 @@ class ISODistributor(Distributor):
                     return False, []
                 _LOG.debug("Modifying repo for updateinfo")
                 metadata.modify_repo(repodata_dir,  updateinfo_path)
+            errata_progress_status["num_success"] = len(errata_units)
+            errata_progress_status["items_left"] = 0
         except metadata.ModifyRepoError, mre:
             msg = "Unable to run modifyrepo to include updateinfo at target location %s; Error: %s" % (repo_working_dir, str(mre))
             errors.append(msg)
             _LOG.error(msg)
             errata_progress_status['state'] = "FAILED"
+            errata_progress_status["num_success"] = 0
+            errata_progress_status["items_left"] = len(errata_units)
             return False, errors
         except Exception, e:
             errors.append(str(e))
             errata_progress_status['state'] = "FAILED"
+            errata_progress_status["num_success"] = 0
+            errata_progress_status["items_left"] = len(errata_units)
             return False, errors
         errata_progress_status['state'] = "FINISHED"
         return True, []
@@ -377,7 +471,6 @@ class ISODistributor(Distributor):
                         continue
                     pinfo['checksumtype'], pinfo['checksum'] = pinfo['sum']
                     rpm_key = form_lookup_key(pinfo)
-                    print "RPM KEY",rpm_key
                     if rpm_key in existing_rpm_units.keys():
                         rpm_unit = existing_rpm_units[rpm_key]
                         _LOG.info("Found matching rpm unit %s" % rpm_unit)

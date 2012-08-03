@@ -21,8 +21,8 @@ import base
 import logging
 import mock_plugins
 import mock_agent
-import json
 import urllib
+
 from pulp.plugins.loader import api as plugin_api
 from pulp.plugins.model import ApplicabilityReport
 from pulp.plugins.loader import api as plugin_api
