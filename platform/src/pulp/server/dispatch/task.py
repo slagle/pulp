@@ -22,6 +22,7 @@ import uuid
 from gettext import gettext as _
 
 from pulp.common import dateutils
+from pulp.server.db import connection
 from pulp.server.dispatch import call
 from pulp.server.dispatch import constants as dispatch_constants
 from pulp.server.dispatch import context as dispatch_context

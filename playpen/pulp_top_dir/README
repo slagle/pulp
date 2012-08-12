@@ -1,0 +1,103 @@
+These scripts (along with setting $PULP_TOP_DIR in your environment) can be
+used to setup an isolated pulp environment for development.
+
+Steps:
+0. Make sure you have python-virtualenv installed.
+
+   ###########################################################################
+   sudo yum install python-virtualenv
+   ###########################################################################
+
+1. Choose a top level directory where you want to setup your development
+   environment, and set $PULP_TOP_DIR to this directory.  We'll use /tmp/pulp.
+
+   ###########################################################################
+   export PULP_TOP_DIR=/tmp/pulp
+   ###########################################################################
+
+   NOTE: make sure you have $PULP_TOP_DIR defined anytime you use any of the
+   commands in the steps below.
+
+2. Run pulp-dev.py as usual, but we need to specify an additional option of -A,
+   which tells the script what user we intend to use to start apache.  We'll
+   use jslagle, since I'm the one writhing this.
+
+   ###########################################################################
+   python pulp-dev.py -I -A jslagle
+   ###########################################################################
+
+   What this does differently
+   ==========================
+   It checks to see if  $PULP_TOP_DIR is defined, and if so, setups all the
+   installed and symlinked files based off this root directory, instead of /.
+
+   It also prepares an isolated apache environment for running Pulp.  It copies
+   a chunk of /etc/httpd as it already exists on your system into the
+   $PULP_TOP_DIR.  
+
+   Since some files need special modifications to run out of $PULP_TOP_DIR, the
+   script also makes those changes.  Therefore, you may notice that some files
+   are copied from your pulp checkout into $PULP_TOP_DIR instead of symlinked
+   as pulp-dev.py noramlly does.  Their copied instead of symlinked to prevent
+   accidental checkins into git.  If you're interested what those are, read
+   the source of pulp-dev.py.
+
+   One final note, pulp-dev.py also sets up a python virtualenv environment
+   based at $PULP_TOP_DIR.  You'll notice we'll be making use of this provided
+   interpreter to finish the setup.
+
+3. Install the Pulp source as usual, but use the python interpreter from our
+   virtualenv environment.
+
+   ###########################################################################
+   cd ~/code/pulp/platform/src
+   $PULP_TOP_DIR/bin/python setup.py install
+
+   cd ~/code/rpm-support/src
+   $PULP_TOP_DIR/bin/python setup.py install
+   ###########################################################################
+
+4. Edit $PULP_TOP_DIR/etc/pulp/admin/admin.conf and change the port to 8443.
+   Our apache instance hosts http on 8080 and https on 8443.
+
+5. Edit $PULP_TOP_DIR/etc/pulp/server.conf and optionally change the database
+   name.  You do this if you don't want to use the already defined
+   pulp_database for this pulp environment.  It's up to you.  If you do change
+   the name, you need to run pulp-migrate.
+
+   Note: The databases for Pulp v1 and v2 are not compatible, so this would be
+   a good reason to change the name.
+
+   ###########################################################################
+   ~/code/pulp/playpen/pulp_top_dir/pulp-migrate
+   ###########################################################################
+
+6. Start the apache server:
+
+   ###########################################################################
+   ~/code/pulp/playpen/pulp_top_dir/start-server
+   ###########################################################################
+
+   There's also a stop-server script:
+
+   ###########################################################################
+   ~/code/pulp/playpen/pulp_top_dir/start-server
+   ###########################################################################
+
+7. Use this pulp-admin to interact with your Pulp development environment:
+
+   ###########################################################################
+   ~/code/pulp/playpen/pulp_top_dir/pulp-admin
+   ###########################################################################
+
+   The apache logs are (of course) relative to your $PULP_TOP_DIR at
+   $PULP_TOP_DIR/var/log/httpd.
+
+8. If you want you can install the sources for grinder and gofer into
+   $PULP_TOP_DIR as well, using the same pattern as was used for installing the
+   sources for Pulp.  This will allow you setup an environment with any
+   combination of Pulp/Grinder/Gofer versions.  Otherwise, the grinder and
+   gofer installed on your system will be used.  
+
+9. Enjoy hacking Pulp :).
+

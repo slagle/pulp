@@ -20,13 +20,20 @@ import logging
 import oauth2
 
 from pulp.server.managers.auth.user import UserManager
-from pulp.server.auth import cert_generator, ldap_connection
+from pulp.server.auth import cert_generator
 from pulp.server.auth.authorization import consumer_users_role
 from pulp.server.auth.cert_generator import verify_cert
 from pulp.server.auth.certificate import Certificate
 from pulp.server.auth.password_util import check_password
 from pulp.server.config import config
 from pulp.server.exceptions import PulpException
+
+try:
+    from pulp.server.auth import ldap_connection
+except ImportError:
+    _have_ldap = False
+else:
+    _have_ldap = True
 
 _user_manager = UserManager()
 
@@ -41,7 +48,10 @@ def _using_ldap():
     @rtype: bool
     @return: True if using ldap, False otherwise
     """
-    return config.has_section('ldap')
+    if not _have_ldap:
+        return False
+    else:
+        return config.has_section('ldap')
 
 
 def _check_username_password_ldap(username, password=None):

@@ -22,6 +22,7 @@ import isodate
 from pulp.common import dateutils
 from pulp.common.tags import resource_tag
 from pulp.server import exceptions as pulp_exceptions
+from pulp.server.db import connection
 from pulp.server.compat import ObjectId
 from pulp.server.db.model.dispatch import ScheduledCall
 from pulp.server.dispatch import call

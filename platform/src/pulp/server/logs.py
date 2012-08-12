@@ -14,9 +14,15 @@
 import logging
 import logging.config
 import os
+import ConfigParser
+import StringIO
 
 from pulp.server import config
 
+
+pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
+pulp_log_file = os.path.join(pulp_top_dir, "var/log/pulp/pulp.log")
+grinder_log_file = os.path.join(pulp_top_dir, "var/log/pulp/grinder.log")
 
 # logging configuration -------------------------------------------------------
 
@@ -54,7 +60,20 @@ def configure_pulp_logging():
     log_config_filename = config.config.get('logs', 'config')
     if not os.access(log_config_filename, os.R_OK):
         raise RuntimeError("Unable to read log configuration file: %s" % (log_config_filename))
-    logging.config.fileConfig(log_config_filename)
+
+    # Apparently no way to override a log file path from the config file, so we
+    # need this hack to adjust the path.
+    cp = ConfigParser.ConfigParser()
+    cp.read(log_config_filename)
+    cp.set("handler_pulp_file", "args",
+        "['%s', 'a', 10000000, 3]" % pulp_log_file)
+    cp.set("handler_grinder_file", "args",
+        "['%s', 'a', 10000000, 3]" % grinder_log_file)
+    sio = StringIO.StringIO()
+    cp.write(sio)
+    sio.seek(0)
+
+    logging.config.fileConfig(sio)
     _enable_all_loggers() # Hack needed for RHEL-5
 
 # pulp logging api ------------------------------------------------------------

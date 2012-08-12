@@ -12,5 +12,8 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-LOCAL_STORAGE="/var/lib/pulp/"
+import os
+data_dir = os.environ["PULP_TOP_DIR"]
+
+LOCAL_STORAGE = os.path.join(data_dir, "var/lib/pulp/")
 

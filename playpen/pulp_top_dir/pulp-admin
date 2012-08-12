@@ -1,0 +1,4 @@
+#!/bin/bash
+
+$PULP_TOP_DIR/usr/bin/pulp-admin \
+    --config $PULP_TOP_DIR/etc/pulp/admin/admin.conf $@

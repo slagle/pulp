@@ -1,0 +1,12 @@
+#!/bin/bash
+
+pidfile=$PULP_TOP_DIR/var/run/httpd/httpd.pid
+
+if [ -e $pidfile ]
+then
+    PID=`cat $PULP_TOP_DIR/var/run/httpd/httpd.pid`
+    echo gracefully restarting process id $PID
+    /usr/bin/kill -s USR1 $PID
+else
+    echo server does not appear to be running
+fi

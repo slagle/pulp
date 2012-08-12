@@ -31,15 +31,17 @@ from pulp_rpm.repo_auth import protected_repo_utils, repo_cert_utils
 _LOG = util.getLogger(__name__)
 _ = gettext.gettext
 
+pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
+
 REQUIRED_CONFIG_KEYS = ["relative_url", "http", "https"]
 OPTIONAL_CONFIG_KEYS = ["protected", "auth_cert", "auth_ca",
                         "https_ca", "gpgkey", "generate_metadata",
                         "checksum_type", "skip", "https_publish_dir", "http_publish_dir"]
 
 SUPPORTED_UNIT_TYPES = [TYPE_ID_RPM, TYPE_ID_SRPM, TYPE_ID_DRPM, TYPE_ID_DISTRO]
-HTTP_PUBLISH_DIR="/var/lib/pulp/published/http/repos"
-HTTPS_PUBLISH_DIR="/var/lib/pulp/published/https/repos"
-CONFIG_REPO_AUTH="/etc/pulp/repo_auth.conf"
+HTTP_PUBLISH_DIR = os.path.join(pulp_top_dir, "var/lib/pulp/published/http/repos")
+HTTPS_PUBLISH_DIR = os.path.join(pulp_top_dir, "var/lib/pulp/published/https/repos")
+CONFIG_REPO_AUTH = os.path.join(pulp_top_dir, "etc/pulp/repo_auth.conf")
 ###
 # Config Options Explained
 ###
@@ -676,7 +678,7 @@ class YumDistributor(Distributor):
     def create_consumer_payload(self, repo, config):
         payload = {}
         ##TODO for jdob: load the pulp.conf and make it accessible to distributor
-        pulp_conf = load_config(config_file="/etc/pulp/server.conf")
+        pulp_conf = load_config(config_file=os.path.join(pulp_top_dir, "etc/pulp/server.conf"))
         payload['server_name'] = pulp_conf.get('server', 'server_name')
         ssl_ca_path = pulp_conf.get('security', 'ssl_ca_certificate')
         if os.path.exists(ssl_ca_path):
@@ -712,4 +714,10 @@ class YumDistributor(Distributor):
 def load_config(config_file=CONFIG_REPO_AUTH):
     config = SafeConfigParser()
     config.read(config_file)
+    # config.set("repos", "cert_location",
+        # os.path.join(pulp_top_dir, "etc/pki/pulp/content"))
+    # config.set("repos", "global_cert_location",
+        # os.path.join(pulp_top_dir, "etc/pki/pulp/content"))
+    # config.set("repos", "protected_repo_listing_file",
+        # os.path.join(pulp_top_dir, "etc/pki/pulp/content/pulp-protected-repos"))
     return config

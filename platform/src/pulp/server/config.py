@@ -18,6 +18,8 @@ from ConfigParser import SafeConfigParser
 
 config = None # ConfigParser.SafeConfigParser instance
 
+pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
+
 # to guarantee that a section and/or setting exists, add a default value here
 _default_values = {
     'cds': {
@@ -41,14 +43,14 @@ _default_values = {
     },
     # XXX should 'ldap' be in here or not?
     'logs': {
-        'config': '/etc/pulp/logging/basic.cfg',
+        'config': os.path.join(pulp_top_dir, 'etc/pulp/logging/basic.cfg'),
         # XXX are the rest of these even used?
         'qpid_log_level': 'info',
         'level': 'info',
         'max_size': '1048576',
         'backups': '4',
-        'pulp_file': '/var/log/pulp/pulp.log',
-        'grinder_file': '/var/log/pulp/grinder.log',
+        'pulp_file': os.path.join(pulp_top_dir, 'var/log/pulp/pulp.log'),
+        'grinder_file': os.path.join(pulp_top_dir, 'var/log/pulp/grinder.log'),
     },
     'messaging': {
         'url': 'tcp://localhost:5672',
@@ -59,9 +61,9 @@ _default_values = {
         'dispatch_interval': '30',
     },
     'security': {
-        'cacert': '/etc/pki/pulp/ca.crt',
-        'cakey': '/etc/pki/pulp/ca.key',
-        'ssl_ca_certificate' : '/etc/pki/pulp/ssl_ca.crt',
+        'cacert': os.path.join(pulp_top_dir, 'etc/pki/pulp/ca.crt'),
+        'cakey': os.path.join(pulp_top_dir, 'etc/pki/pulp/ca.key'),
+        'ssl_ca_certificate' : os.path.join(pulp_top_dir, 'etc/pki/pulp/ssl_ca.crt'),
         # XXX should these be in here?
         #'oauth_key': '',
         #'oauth_secret': '',
@@ -76,7 +78,7 @@ _default_values = {
         'default_login': 'admin',
         'default_password': 'admin',
         'debugging_mode': 'false',
-        'storage_dir': '/var/lib/pulp/',
+        'storage_dir': os.path.join(pulp_top_dir, 'var/lib/pulp/'),
     },
     'tasks': {
         'concurrency_threshold': '9',
@@ -88,7 +90,7 @@ _default_values = {
 }
 
 # to add a default configuration file, list the full path here
-_config_files = ['/etc/pulp/server.conf']
+_config_files = [os.path.join(pulp_top_dir, 'etc/pulp/server.conf')]
 
 # configuration api -----------------------------------------------------------
 

@@ -11,6 +11,7 @@
 # have received a copy of GPLv2 along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 
+import os
 
 from threading import RLock
 from datetime import datetime as dt
@@ -29,6 +30,9 @@ from logging import getLogger
 
 log = getLogger(__name__)
 
+
+data_dir = os.environ["PULP_TOP_DIR"]
+watchdog_journal_path = os.path.join(data_dir, 'var/lib/pulp/journal/watchdog')
 
 class Services:
     """
@@ -60,7 +64,7 @@ class Services:
         log.info('AMQP broker configured')
         # watchdog
         cls.watchdog = WatchDog(url=url)
-        cls.watchdog.journal('/var/lib/pulp/journal/watchdog')
+        cls.watchdog.journal(watchdog_journal_path)
         cls.watchdog.start()
         log.info('AMQP watchdog started')
         # heartbeat

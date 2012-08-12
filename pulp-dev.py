@@ -14,9 +14,17 @@
 
 import optparse
 import os
+import pwd
 import shutil
 import sys
 
+pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
+_devel = pulp_top_dir != "/"
+    
+pulp_log_dir = os.path.join(pulp_top_dir, "var/log/pulp")
+pulp_lib_dir = os.path.join(pulp_top_dir, "var/lib/pulp")
+pulp_pki_dir = os.path.join(pulp_top_dir, "etc/pki/pulp")
+pub_dir = os.path.join(pulp_top_dir, "var/www/pub")
 WARNING_COLOR = '\033[31m'
 WARNING_RESET = '\033[0m'
 
@@ -39,8 +47,11 @@ DIRS = (
     '/etc/pki/pulp',
     '/etc/pki/pulp/consumer',
     '/etc/pki/pulp/content',
+    '/etc/rc.d/init.d',
+    '/etc/yum/pluginconf.d',
     '/srv',
     '/srv/pulp',
+    '/usr/bin',
     '/usr/lib/pulp/',
     '/usr/lib/pulp/agent',
     '/usr/lib/pulp/agent/handlers',
@@ -68,6 +79,7 @@ DIRS = (
     '/var/lib/pulp/uploads',
     '/var/log/pulp',
     '/var/www/.python-eggs', # needed for older versions of mod_wsgi
+    '/var/run',
 )
 
 #
@@ -142,6 +154,60 @@ LINKS = (
     ('rpm-support/srv/pulp/repo_auth.wsgi', '/srv/pulp/repo_auth.wsgi'),
     )
 
+DEVEL_DIRS = (
+    "var/run/httpd",
+    "var/log/httpd",
+    "src",
+    )
+
+DEVEL_FILES = (
+    ('/etc/httpd/conf', 'etc/httpd/conf'),
+    ('/etc/httpd/conf/httpd.conf', 'etc/httpd/conf/httpd.conf'),
+    ('/etc/httpd/conf.d', 'etc/httpd/conf.d'),
+    ('/usr/lib64/httpd/modules', 'etc/httpd/modules'),
+    ('platform/etc/pulp/admin/admin.conf', 'etc/pulp/admin/admin.conf'),
+    ('platform/etc/pulp/server.conf', 'etc/pulp/server.conf'),
+    ('platform/etc/httpd/conf.d/pulp.conf', 'etc/httpd/conf.d/pulp.conf'),
+    ('rpm-support/etc/httpd/conf.d/pulp_rpm.conf', 'etc/httpd/conf.d/pulp_rpm.conf'),
+    ('platform/srv/pulp/webservices.wsgi', 'srv/pulp/webservices.wsgi'),
+    ('platform/bin/pulp-admin', 'usr/bin/pulp-admin'),
+    )
+
+DEVEL_SOURCE_LINKS = (
+    ('platform/src/pulp', 'src/pulp'),
+    ('rpm-support/src/pulp_rpm', 'src/pulp_rpm'),
+    )
+
+DEVEL_PULP_TOP_DIR_LINKS = (
+    ('var/log/httpd', 'etc/httpd/logs'),
+    ('var/run/httpd', 'etc/httpd/run'),
+    )
+
+REPLACE_PATHS = (
+    "srv/pulp/webservices.wsgi",
+    "etc/pki/pulp/ca.crt",
+    "var/www/pub/http/repos",
+    "var/www/pub/https/repos",
+    "var/www/pub/gpg",
+    "var/www/pub/ks",
+    "srv/pulp/repo_auth.wsgi",
+    "etc/httpd",
+    "usr/lib/pulp/admin/extensions",
+    "etc/pulp/logging/basic.cfg",
+    "var/log/pulp/pulp.log",
+    "var/log/pulp/grinder.log",
+    "etc/pki/pulp/ca.key",
+    "etc/pki/pulp/ssl_ca.crt",
+    )
+
+PORT_FILES = (
+    "etc/httpd/conf/httpd.conf",
+    "etc/httpd/conf.d/pulp_rpm.conf",
+    "etc/httpd/conf.d/ssl.conf",
+    "etc/pulp/admin/admin.conf",
+    )
+
+
 def parse_cmdline():
     """
     Parse and validate the command line options.
@@ -157,6 +223,11 @@ def parse_cmdline():
     parser.add_option('-D', '--debug',
                       action='store_true',
                       help=optparse.SUPPRESS_HELP)
+    parser.add_option('-A', '--apache-user',
+                      action='store',
+                      help=('system user that will be running apache '
+                           '(defaults to apache)')
+                     )
 
     parser.set_defaults(install=False,
                         uninstall=False,
@@ -169,6 +240,9 @@ def parse_cmdline():
 
     if not (opts.install or opts.uninstall):
         parser.error('neither install or uninstall specified')
+
+    if not opts.apache_user:
+        opts.apache_user = 'apache'
 
     return (opts, args)
 
@@ -183,6 +257,9 @@ def debug(opts, msg):
 
 def create_dirs(opts):
     for d in DIRS:
+        if d.startswith('/'):
+            d = d[1:]
+        d = os.path.join(pulp_top_dir, d)
         if os.path.exists(d) and os.path.isdir(d):
             debug(opts, 'skipping %s exists' % d)
             continue
@@ -199,13 +276,21 @@ def getlinks():
         else:
             src = l
             dst = os.path.join('/', l)
+        if dst.startswith('/'):
+            dst = dst[1:]
+        dst = os.path.join(pulp_top_dir, dst)
         links.append((src, dst))
     return links
 
 
 def install(opts):
+
+    if _devel:
+        devel(opts)
+
     warnings = []
     create_dirs(opts)
+
     currdir = os.path.abspath(os.path.dirname(__file__))
     for src, dst in getlinks():
         warning_msg = create_link(opts, os.path.join(currdir,src), dst)
@@ -213,26 +298,104 @@ def install(opts):
             warnings.append(warning_msg)
 
     # Link between pulp and apache
-    create_link(opts, '/var/lib/pulp/published', '/var/www/pub')
+    create_link(opts, os.path.join(pulp_lib_dir, "published"), pub_dir)
 
-    # Grant apache write access to the pulp tools log file and pulp
-    # packages dir
-    os.system('chown -R apache:apache /var/log/pulp')
-    os.system('chown -R apache:apache /var/lib/pulp')
-    os.system('chown -R apache:apache /var/lib/pulp/published')
+    # Grant write access to the pulp tools log file and pulp
+    # packages dir for the apache user
+    uid, gid = pwd.getpwnam(opts.apache_user)[2:4]
 
-    # Guarantee apache always has write permissions
-    os.system('chmod 3775 /var/log/pulp')
-    os.system('chmod 3775 /var/www/pub')
-    os.system('chmod 3775 /var/lib/pulp')
+    os.system('chown -R %s:%s %s' % (uid, gid, pulp_log_dir))
+    os.system('chown -R %s:%s %s' % (uid, gid, pulp_lib_dir))
+    os.system('chown -R %s:%s %s' % (uid, gid, os.path.join(pulp_lib_dir, 'published')))
+    # guarantee apache always has write permissions
+    os.system('chmod 3775 %s' % pulp_log_dir)
+    os.system('chmod 3775 %s' % pulp_lib_dir)
+
     # Update for certs
-    os.system('chown -R apache:apache /etc/pki/pulp')
+    os.system('chown -R %s:%s %s' % (uid, gid, pulp_pki_dir))
 
     if warnings:
         print "\n***\nPossible problems:  Please read below\n***"
         for w in warnings:
             warning(w)
     return os.EX_OK
+
+def devel(opts):
+
+    # Create pulp_top_dir if it doesn't exist
+    if not os.path.exists(pulp_top_dir):
+        os.makedirs(pulp_top_dir)
+
+    # Create development directories if they don't already exist
+    for _dir in DEVEL_DIRS:
+        new_dir = os.path.join(pulp_top_dir, _dir)
+        if not os.path.exists(new_dir):
+            os.makedirs(new_dir)
+
+    # Copy development files/directories if they don't already exist
+    # These files are copied instead of symlink'd b/c we're going to modify
+    # them.
+    for src, dst in DEVEL_FILES:
+        new_dst = os.path.join(pulp_top_dir, dst)
+        if not os.path.exists(new_dst):
+            if os.path.isdir(src):
+                shutil.copytree(src, new_dst)
+            else:
+                # Create directory to the file if needed
+                _dir = os.path.dirname(new_dst)
+                if not os.path.exists(_dir):
+                    os.makedirs(_dir)
+                shutil.copy(src, new_dst)
+
+        if not os.path.isdir(new_dst):
+            # Substitute needed paths
+            for path in REPLACE_PATHS:
+                new_path = os.path.join(pulp_top_dir, path)
+                command = "sed -i 's#%s#%s#g' %s" % (path, new_path, new_dst)
+                print "running %s" % command
+                os.system(command)
+
+    # Symlink needed files from the source tree
+    for src, dst in DEVEL_SOURCE_LINKS:
+        new_dst = os.path.join(pulp_top_dir, dst)
+        currdir = os.path.abspath(os.path.dirname(__file__))
+        new_src = os.path.join(currdir, src)
+        if not os.path.exists(new_dst):
+            print "linking %s to %s" % (new_dst, new_src)
+            os.symlink(new_src, new_dst)
+
+    # Symlink needed files within pulp_top_dir
+    for src, dst in DEVEL_PULP_TOP_DIR_LINKS:
+        new_dst = os.path.join(pulp_top_dir, dst)
+        new_src = os.path.join(pulp_top_dir, src)
+        if not os.path.exists(new_dst):
+            print "linking %s to %s" % (new_dst, new_src)
+            os.symlink(new_src, new_dst)
+
+    # Port substitution
+    for port_file in PORT_FILES:
+        port_file_path = os.path.join(pulp_top_dir, port_file)
+        os.system("sed -i 's#80#8080#g' %s" % port_file_path)
+        os.system("sed -i 's#443#8443#g' %s" % port_file_path)
+
+    # Modify import path 
+    src_dir = os.path.join(pulp_top_dir, "src").replace('/', '\/')
+    wsgi_path = os.path.join(pulp_top_dir, "srv/pulp/webservices.wsgi")
+    pulp_admin_path = os.path.join(pulp_top_dir, "usr/bin/pulp-admin")
+    sed = \
+        "sed -i '0,/^$/s/^$/import sys\\nsys.path.insert(0, \"%s\")\\n/' %s"
+    command = sed % (src_dir, wsgi_path)
+    os.system(command)
+    command = sed % (src_dir, pulp_admin_path)
+    os.system(command)
+
+    # Modify hostname in admin.conf
+    pulp_admin_conf_path = os.path.join(pulp_top_dir,
+        'etc/pulp/admin/admin.conf')
+    import socket
+    hostname = socket.gethostname()
+    os.system("sed -i 's/localhost.localdomain/%s/' %s" % 
+        (hostname, pulp_admin_conf_path))
 
 
 def uninstall(opts):
@@ -244,12 +407,12 @@ def uninstall(opts):
         os.unlink(dst)
 
     # Link between pulp and apache
-    if os.path.exists('/var/www/pub'):
-        os.unlink('/var/www/pub')
+    if os.path.exists(pub_dir):
+        os.unlink(pub_dir)
 
     # Old link between pulp and apache, make sure it's cleaned up
-    if os.path.exists('/var/www/html/pub'):
-        os.unlink('/var/www/html/pub')
+    if os.path.exists(os.path.join(pulp_top_dir, 'var/www/html/pub')):
+        os.unlink(os.path.join(pulp_top_dir, 'var/www/html/pub'))
 
     return os.EX_OK
 

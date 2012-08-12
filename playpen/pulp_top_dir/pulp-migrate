@@ -1,0 +1,3 @@
+#!/bin/bash
+
+$PULP_TOP_DIR/bin/python $PULP_TOP_DIR/usr/bin/pulp-migrate $@

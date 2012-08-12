@@ -12,6 +12,7 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 
 import logging
+import os
 from M2Crypto import X509, EVP, RSA, util
 from threading import RLock
 import subprocess
@@ -26,10 +27,12 @@ log = logging.getLogger(__name__)
 ADMIN_PREFIX = 'admin:'
 ADMIN_SPLITTER = ':'
 
+pulp_top_dir = os.environ.get("PULP_TOP_DIR", "/")
+serial_path = os.path.join(pulp_top_dir, 'var/lib/pulp/sn.dat')
 
 class SerialNumber:
 
-    PATH = '/var/lib/pulp/sn.dat'
+    PATH = serial_path
     __mutex = RLock()
     __metaclass__ = Singleton
 

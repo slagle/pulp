@@ -21,6 +21,7 @@ from gettext import gettext as _
 
 from pulp.common import dateutils
 from pulp.server.db.model.dispatch import QueuedCall
+from pulp.server.db import connection
 from pulp.server.dispatch import constants as dispatch_constants
 
 
